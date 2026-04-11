@@ -1,0 +1,95 @@
+# claude-sandbox zsh configuration
+# Modeled after butterfly's raptor distrobox setup
+
+##### zinit bootstrap
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+if [[ ! -f $ZINIT_HOME/zinit.zsh ]]; then
+    command mkdir -p "$(dirname "$ZINIT_HOME")" && command chmod g-rwX "$(dirname "$ZINIT_HOME")"
+    command git clone https://github.com/zdharma-continuum/zinit "$ZINIT_HOME"
+fi
+
+source "$ZINIT_HOME/zinit.zsh"
+autoload -Uz _zinit
+(( ${+_comps} )) && _comps[zinit]=_zinit
+[[ ! -d "$ZPFX/bin" ]] && mkdir -p "$ZPFX/bin"
+
+# Annexes
+zinit light-mode for \
+    zdharma-continuum/zinit-annex-as-monitor \
+    zdharma-continuum/zinit-annex-bin-gem-node \
+    zdharma-continuum/zinit-annex-patch-dl \
+    zdharma-continuum/zinit-annex-rust
+
+##### PATH & early env
+export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.npm-global}"
+
+# PATH priority: user-local overrides > cargo user > asdf shims > npm global > go > system cargo
+path=("$HOME/.local/bin" "$HOME/.cargo/bin" "$ASDF_DATA_DIR/shims" "$NPM_CONFIG_PREFIX/bin" "$HOME/go/bin" $path)
+
+##### asdf + starship via zinit (github releases)
+zinit from"gh-r" as"program" lucid atpull'%atclone' for \
+    atclone'ASDF_DATA_DIR="$ASDF_DATA_DIR" mkdir -p "$ASDF_DATA_DIR/completions"; ./asdf completion zsh > "$ASDF_DATA_DIR/completions/_asdf"' pick'asdf' mv"*asdf* -> asdf" @asdf-vm/asdf \
+    atclone'./starship init zsh > init.zsh; ./starship completions zsh > _starship' src"init.zsh" pick"starship" @starship/starship
+
+fpath=("$ASDF_DATA_DIR/completions" $fpath)
+
+##### dircolors / LS_COLORS
+zinit ice atclone'dircolors -b LS_COLORS > clrs.zsh' atpull'%atclone' pick"clrs.zsh" nocompile'!' \
+          atload'zstyle ":completion:*" list-colors "${(s.:.)LS_COLORS}"'
+zinit light trapd00r/LS_COLORS
+
+##### direnv
+zinit ice from"gh-r" as"program" mv"direnv* -> direnv"
+zinit light direnv/direnv
+eval "$(direnv hook zsh)"
+
+##### Navigation tools + interactive config
+zinit ice wait"1" lucid atload'!source ~/.zsh/interactive.zsh'
+zinit load psprint/zsh-navigation-tools
+
+##### Core line editing + completions (deferred)
+zinit lucid wait for \
+    zdharma-continuum/fast-syntax-highlighting \
+    blockf zsh-users/zsh-completions \
+    atload"!_zsh_autosuggest_start" zsh-users/zsh-autosuggestions
+
+##### Completion init — after all fpath edits
+ZINIT[ZCOMPDUMP_PATH]="${HOME}/.zcompdump-${HOST}"
+ZINIT[COMPINIT_OPTS]=-C
+zicompinit
+zicdreplay
+
+##### Shell options
+setopt cbases extendedglob nobgnice
+
+##### Aliases
+alias ls='eza -lah --color=auto --icons=auto --group-directories-first'
+alias ll='eza -lah --color=auto --icons=auto --group-directories-first'
+alias la='eza -ah --color=auto --icons=auto --group-directories-first'
+alias lt='eza --tree --color=auto --icons=auto --group-directories-first'
+alias cat='bat --paging=never'
+alias vim='nvim'
+alias vi='nvim'
+alias g='git'
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git pull'
+alias gd='git diff'
+alias gco='git checkout'
+alias gb='git branch'
+alias glog='git log --oneline --graph --decorate'
+alias py='python3'
+alias pip='uv pip'
+
+##### JAVA_HOME (if java installed via asdf)
+if command -v asdf &>/dev/null && asdf current java &>/dev/null 2>&1; then
+    export JAVA_HOME="$(asdf env javac 2>/dev/null | grep JAVA_HOME | cut -d= -f2)"
+fi
+
+##### JAVA_HOME re-export after asdf shims are live
+if command -v java &>/dev/null; then
+    export JAVA_HOME="${JAVA_HOME:-$(dirname $(dirname $(readlink -f $(asdf which java 2>/dev/null) 2>/dev/null) 2>/dev/null) 2>/dev/null)}"
+fi

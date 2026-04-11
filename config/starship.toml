@@ -1,0 +1,106 @@
+format = """
+$username\
+[](bg:#35284f fg:#1e2130)\
+$directory\
+[](bg:#653070 fg:#35284f)\
+${custom.git_branch}\
+${custom.git_status}\
+${custom.jj}\
+[](bg:#853973 fg:#653070)\
+$gradle\
+$java\
+$nodejs\
+$rust\
+[](bg:#a94858 fg:#853973)\
+$hostname\
+[](bg:#b38067 fg:#a94858)\
+$time\
+[ ](bg:#2a3058 fg:#b38067)\
+$status\
+[ ](bg:#1e2130 fg:#2a3058)\
+$line_break \
+"""
+
+[username]
+show_always = true
+style_user = "bg:#1e2130"
+style_root = "bg:#1e2130"
+format = '[🦋 ]($style)'
+disabled = false
+
+[directory]
+style = "bg:#35284f fg:#e2bbea"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+
+[hostname]
+ssh_only = false
+style = "bg:#a94858 fg:#f4fcf3"
+format = '[$ssh_symbol$hostname]($style)'
+
+[custom.git_branch]
+command = '''starship module git_branch'''
+format = "$output"
+detect_folders = [".git", "!.jj"]
+
+[custom.git_status]
+command = '''starship module git_status'''
+format = "$output"
+detect_folders = [".git", "!.jj"]
+
+[git_branch]
+symbol = ""
+style = "bg:#653070"
+format = '[ $symbol $branch ]($style)'
+
+[git_status]
+style = "bg:#653070"
+format = '[$all_status$ahead_behind ]($style)'
+
+[custom.jj]
+command = '''starship-jj --ignore-working-copy starship prompt'''
+symbol = "🪄 "
+style = "bg:#653070"
+format = "[$symbol$output]($style)"
+detect_folders = [".jj"]
+
+[gradle]
+style = "bg:#853973 fg:#fbfaf2"
+format = '[ $symbol ($version) ]($style)'
+
+[java]
+symbol = " "
+style = "bg:#853973 fg:#fbfaf2"
+format = '[ $symbol ($version) ]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:#853973 fg:#fbfaf2"
+format = '[ $symbol ($version) ]($style)'
+
+[rust]
+symbol = ""
+style = "bg:#853973 fg:#fbfaf2"
+format = '[ $symbol ($version) ]($style)'
+
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:#b38067 fg:#5f458f"
+format = '[ ♥ $time ]($style)'
+
+[status]
+disabled = false
+map_symbol = true
+pipestatus = false
+format = '[$symbol $status ]($style)[ ]($style)'
+
+[line_break]
+disabled = false
