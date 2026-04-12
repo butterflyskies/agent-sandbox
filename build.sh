@@ -9,13 +9,14 @@ REGISTRY="${REGISTRY:-}"
 ARGS=(
     --tag "${IMAGE_NAME}:${IMAGE_TAG}"
     --file Containerfile
+    --layers
 )
 
 # Registry-backed cache (set REGISTRY to enable, e.g. ghcr.io/butterflyskies/claude-sandbox)
 if [[ -n "$REGISTRY" ]]; then
     ARGS+=(
-        --cache-from="type=registry,ref=${REGISTRY}:buildcache"
-        --cache-to="type=registry,ref=${REGISTRY}:buildcache"
+        --cache-from="${REGISTRY}/cache"
+        --cache-to="type=image,ref=${REGISTRY}/cache"
     )
 fi
 

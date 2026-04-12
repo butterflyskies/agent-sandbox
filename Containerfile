@@ -12,8 +12,8 @@
 #
 # Build with registry cache (CI or shared builds):
 #   podman build \
-#     --cache-from=type=registry,ref=ghcr.io/butterflyskies/claude-sandbox:buildcache \
-#     --cache-to=type=registry,ref=ghcr.io/butterflyskies/claude-sandbox:buildcache \
+#     --cache-from=ghcr.io/butterflyskies/claude-sandbox/cache \
+#     --cache-to=type=image,ref=ghcr.io/butterflyskies/claude-sandbox/cache \
 #     -t claude-sandbox -f Containerfile .
 #
 # Run:
