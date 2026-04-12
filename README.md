@@ -1,13 +1,13 @@
 # claude-sandbox
 
-OCI container image for running AI coding agents — primarily [Claude Code](https://docs.anthropic.com/en/docs/claude-code), but also ships OpenAI Codex, Google Gemini CLI, and OpenCode.
+OCI container image for running AI coding agents — primarily [Claude Code](https://docs.anthropic.com/en/docs/claude-code), but also ships OpenAI Codex, Google Gemini CLI, OpenCode, and [microsandbox](https://github.com/microsandbox/microsandbox).
 
-Designed for use with [microsandbox](https://github.com/nicholasgasior/microsandbox) or plain `podman run`, with volume mounts for source repos and credentials injected at runtime.
+Designed for use with microsandbox or plain `podman run`, with volume mounts for source repos and credentials injected at runtime.
 
 ## Quick start
 
 ```bash
-podman build -t claude-sandbox -f Containerfile .
+./build.sh
 
 podman run -it --rm \
   -v ~/dev:/home/agent/dev:Z \
@@ -35,7 +35,8 @@ podman run -it --rm --entrypoint opencode claude-sandbox
 | Category | Contents |
 |----------|----------|
 | **AI agents** | Claude Code (native), Codex, Gemini CLI, OpenCode |
-| **Runtimes** | Node.js 22, Python 3.12, Go, Java (GraalVM 21), Ruby, Zig, Bun (via asdf) |
+| **Sandbox** | microsandbox (`msb`) CLI |
+| **Runtimes** | Node.js 24 LTS, Python 3.12, Go, Java (GraalVM 21), Ruby, Zig, Bun (via asdf) |
 | **Build tools** | Rust (stable) + cargo tools, Gradle, Maven, pnpm, uv, cmake, ninja, meson |
 | **VCS** | git, git-lfs, git-crypt, jj (Jujutsu), gh CLI |
 | **Shell** | zsh + zinit + starship + fzf-tab + atuin + zoxide + direnv |
@@ -59,40 +60,58 @@ The `agent` user's home is `/home/agent`. If you want state to persist across ru
 
 ## Build caching
 
-Local rebuilds benefit from cargo cache mounts automatically (`--mount=type=cache` in the Containerfile).
+Local rebuilds benefit from cargo cache mounts automatically (`--mount=type=cache` in the Containerfile) and Podman's layer cache (`--layers`).
 
 For CI or cross-machine cache sharing, use registry-backed caching:
 
 ```bash
-podman build \
-  --layers \
-  --cache-from=ghcr.io/butterflyskies/claude-sandbox-cache \
-  --cache-to=ghcr.io/butterflyskies/claude-sandbox-cache \
-  -t claude-sandbox -f Containerfile .
+REGISTRY=ghcr.io/yourorg/yourrepo ./build.sh
 ```
 
-## Limitations and security considerations
+Set `REGISTRY` to your own OCI registry. Requires `write:packages` scope (or equivalent) for push. The build script falls back to local-only caching if the registry push fails.
 
-**This is a hasty first pass. Use at your own risk.**
+## Supply chain security
 
-- **Nothing is pinned.** No tool versions, no image digests, no git refs. Builds are not reproducible — running the same Containerfile a week apart may produce meaningfully different images. Pinning is planned but not yet implemented.
+All tool installations use **pinned versions with SHA256 checksum verification** where possible. Version pins and checksums are declared as `ARG` values at the top of the Containerfile for easy auditing and updates.
 
-- **`curl | sh` is used extensively.** The following tools are installed by piping remote scripts into a shell at build time, with no integrity verification beyond TLS:
-  - `rustup` (sh.rustup.rs)
-  - `uv` (astral.sh/uv/install.sh)
-  - `chezmoi` (get.chezmoi.io)
-  - `claude` (claude.ai/install.sh)
-  - `opencode` (opencode.ai/install)
+| Tool | Install method | Pinned | Integrity check |
+|------|---------------|--------|-----------------|
+| Rust toolchain | Direct binary download | rustup-init SHA256 | sha256sum verify |
+| Cargo crates (15) | `cargo install --locked @version` | Exact versions | cargo lockfile |
+| uv | GitHub release tarball | Version + SHA256 | sha256sum verify |
+| chezmoi | GitHub release binary | Version + SHA256 | sha256sum verify |
+| zoxide | GitHub release tarball | Version + SHA256 | sha256sum verify |
+| opencode | GitHub release tarball | Version + SHA256 | sha256sum verify |
+| microsandbox | GitHub release tarball | Version + SHA256 | sha256sum verify |
+| Claude Code | Official installer script | Floating (latest) | Installer verifies binary SHA256 from manifest |
+| Codex, Gemini | npm install -g | Floating (latest) | npm registry signatures |
+| gh, eza, step-cli | apt with signed repos | Distro package version | GPG-signed apt repos |
+| asdf runtimes | asdf install latest:N | Major.minor pinned | Plugin-specific verification |
 
-  This is an inherent supply-chain risk. Each of these scripts could be compromised or changed between builds. A hardened version would download pinned releases, verify checksums, and avoid shell-pipe installation entirely.
+### Remaining risks
 
-- **asdf plugin sources are not pinned.** Plugin repositories are cloned from GitHub at build time with no ref or SHA lock. The `asdf install <tool> latest:N` pattern also means patch versions float between builds.
+- **Claude Code's installer script itself is not pinned.** The binary it downloads is SHA256-verified, but the script that does the downloading is fetched fresh each build. A compromised script could bypass its own verification.
 
-- **`apt-get upgrade` at the end introduces drift.** The final security-patch layer is good practice but means the image content depends on when it was built.
+- **npm packages (Codex, Gemini) float to latest.** npm registry signatures provide some protection, but versions are not locked.
 
-- **The image is large.** Multi-stage build keeps the Rust compilation artifacts out, but the runtime image still includes a full build toolchain (gcc, cmake, etc.), multiple language runtimes, and ~15 cargo binaries. Expect 2-4 GB.
+- **asdf plugin repos are not pinned to SHAs.** Plugins are cloned from GitHub with no ref lock. The `latest:N` pattern means patch versions float.
 
-- **No seccomp/AppArmor profiles are provided.** The image runs as a non-root user (`agent`, uid 1000) with passwordless sudo. Restrict capabilities at the container runtime level as appropriate for your threat model.
+- **Third-party apt repo signing keys are fetched at build time.** The gh, eza, and step-cli apt repos are GPG-signed, but the signing keys themselves are downloaded over TLS without pinning.
+
+- **`apt-get upgrade` introduces drift.** The final security-patch layer means image content depends on build date.
+
+- **The image is large.** Multi-stage build keeps Rust compilation artifacts out, but expect 2-4 GB with the full build toolchain and multiple runtimes.
+
+- **No seccomp/AppArmor profiles are provided.** The image runs as a non-root user (`agent`, uid 1000) with passwordless sudo. Restrict capabilities at the container runtime level.
+
+## Updating versions
+
+All pinned versions are at the top of the Containerfile as `ARG` declarations. To bump:
+
+1. Update the version ARG
+2. Download the new artifact and compute `sha256sum`
+3. Update the corresponding SHA256 ARG
+4. Rebuild
 
 ## License
 

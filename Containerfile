@@ -2,19 +2,14 @@
 #
 # Design:
 #   - Claude Code (native binary) is the default entrypoint
-#   - Also ships: opencode, codex, gemini CLI
+#   - Also ships: opencode, codex, gemini CLI, microsandbox
 #   - zsh available via `podman run --entrypoint zsh`
 #   - No credentials baked in — mount them at runtime
 #   - Single non-root user (agent), no SSH daemon
+#   - All tool downloads are pinned to specific versions with SHA256 verification
 #
 # Build:
-#   podman build -t claude-sandbox -f Containerfile .
-#
-# Build with registry cache (CI or shared builds):
-#   podman build \
-#     --cache-from=ghcr.io/butterflyskies/claude-sandbox-cache \
-#     --cache-to=ghcr.io/butterflyskies/claude-sandbox-cache \
-#     -t claude-sandbox -f Containerfile .
+#   ./build.sh
 #
 # Run:
 #   podman run -it --rm \
@@ -32,9 +27,49 @@
 #   podman run -it --rm --entrypoint codex claude-sandbox
 
 # =============================================================================
+# Pinned versions — update these together when bumping
+# =============================================================================
+# Cargo crate versions
+ARG JUST_VERSION=1.49.0
+ARG HYPERFINE_VERSION=1.20.0
+ARG TOKEI_VERSION=14.0.0
+ARG BOTTOM_VERSION=0.12.3
+ARG DU_DUST_VERSION=1.2.4
+ARG PROCS_VERSION=0.14.11
+ARG SD_VERSION=1.0.0
+ARG TEALDEER_VERSION=1.8.1
+ARG BANDWHICH_VERSION=0.23.1
+ARG CARGO_WATCH_VERSION=8.5.3
+ARG CARGO_EDIT_VERSION=0.13.9
+ARG CARGO_OUTDATED_VERSION=0.18.0
+ARG CARGO_AUDIT_VERSION=0.22.1
+ARG JJ_CLI_VERSION=0.40.0
+ARG STARSHIP_JJ_VERSION=0.7.0
+ARG ATUIN_VERSION=18.13.6
+
+# Standalone tool versions + checksums (linux x86_64)
+ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+ARG UV_VERSION=0.11.6
+ARG UV_SHA256=0c6bab77a67a445dc849ed5e8ee8d3cb333b6e2eba863643ce1e228075f27943
+ARG CHEZMOI_VERSION=2.70.1
+ARG CHEZMOI_SHA256=3f51b236fa337abd1c48b4d893182553aabe2ddb4eff07737c4950d7bea5ed61
+ARG ZOXIDE_VERSION=0.9.9
+ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
+ARG OPENCODE_VERSION=1.4.3
+ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+ARG MSB_VERSION=0.3.12
+ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
+
+# =============================================================================
 # Stage 1: cargo binary builder
 # =============================================================================
 FROM ubuntu:24.04 AS builder
+
+ARG RUSTUP_SHA256
+ARG JUST_VERSION HYPERFINE_VERSION TOKEI_VERSION BOTTOM_VERSION DU_DUST_VERSION
+ARG PROCS_VERSION SD_VERSION TEALDEER_VERSION BANDWHICH_VERSION
+ARG CARGO_WATCH_VERSION CARGO_EDIT_VERSION CARGO_OUTDATED_VERSION CARGO_AUDIT_VERSION
+ARG JJ_CLI_VERSION STARSHIP_JJ_VERSION ATUIN_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/opt/cargo \
@@ -44,27 +79,50 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential cmake pkg-config libssl-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-        | sh -s -- -y --default-toolchain stable --profile minimal \
+    # --- rustup: download, verify, execute (no curl|sh) ---
+    && curl --proto '=https' --tlsv1.2 -sSf \
+        -o /tmp/rustup-init \
+        https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init \
+    && echo "${RUSTUP_SHA256}  /tmp/rustup-init" | sha256sum -c - \
+    && chmod +x /tmp/rustup-init \
+    && /tmp/rustup-init -y --default-toolchain stable --profile minimal \
+    && rm /tmp/rustup-init \
     && . /opt/cargo/env \
     && rustup component add rust-analyzer clippy rustfmt
 
-# Cargo tools — cache mounts keep the registry index and compiled artifacts
-# across builds so only new/changed crates recompile.
+# Cargo tools — pinned versions, cache mounts for incremental rebuilds
 RUN --mount=type=cache,target=/opt/cargo/registry,sharing=locked \
     --mount=type=cache,target=/opt/cargo/git,sharing=locked \
     --mount=type=cache,target=/tmp/cargo-build,sharing=locked \
     . /opt/cargo/env \
     && CARGO_TARGET_DIR=/tmp/cargo-build cargo install --locked \
-        just hyperfine tokei \
-        bottom du-dust procs sd tealdeer bandwhich \
-        cargo-watch cargo-edit cargo-outdated cargo-audit \
-        jj-cli starship-jj atuin
+        just@${JUST_VERSION} \
+        hyperfine@${HYPERFINE_VERSION} \
+        tokei@${TOKEI_VERSION} \
+        bottom@${BOTTOM_VERSION} \
+        du-dust@${DU_DUST_VERSION} \
+        procs@${PROCS_VERSION} \
+        sd@${SD_VERSION} \
+        tealdeer@${TEALDEER_VERSION} \
+        bandwhich@${BANDWHICH_VERSION} \
+        cargo-watch@${CARGO_WATCH_VERSION} \
+        cargo-edit@${CARGO_EDIT_VERSION} \
+        cargo-outdated@${CARGO_OUTDATED_VERSION} \
+        cargo-audit@${CARGO_AUDIT_VERSION} \
+        jj-cli@${JJ_CLI_VERSION} \
+        starship-jj@${STARSHIP_JJ_VERSION} \
+        atuin@${ATUIN_VERSION}
 
 # =============================================================================
 # Stage 2: runtime image
 # =============================================================================
 FROM ubuntu:24.04
+
+ARG UV_VERSION UV_SHA256
+ARG CHEZMOI_VERSION CHEZMOI_SHA256
+ARG ZOXIDE_VERSION ZOXIDE_SHA256
+ARG OPENCODE_VERSION OPENCODE_SHA256
+ARG MSB_VERSION MSB_SHA256
 
 LABEL description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
       org.opencontainers.image.source="https://github.com/butterflyskies/claude-sandbox"
@@ -100,7 +158,7 @@ RUN apt-get update \
         protobuf-compiler \
         libssl-dev libffi-dev zlib1g-dev libreadline-dev libsqlite3-dev \
         libncurses-dev libbz2-dev liblzma-dev libxml2-dev libxmlsec1-dev \
-        tk-dev libgdbm-dev \
+        tk-dev libgdbm-dev libyaml-dev \
         # vcs
         git git-lfs git-crypt \
         # shell + editors
@@ -142,9 +200,6 @@ RUN apt-get update \
     # --- default editor ---
     && update-alternatives --install /usr/bin/editor editor /usr/bin/nvim 100 \
     && update-alternatives --set editor /usr/bin/nvim \
-    # --- standalone tools (starship, zoxide, jj, atuin come from builder stage) ---
-    && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \
-    && sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin \
     # --- user setup ---
     && userdel -r ubuntu 2>/dev/null || true \
     && groupdel ubuntu 2>/dev/null || true \
@@ -170,6 +225,41 @@ RUN apt-get update \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
+# Standalone tools — pinned versions, SHA256-verified, no curl|sh
+# ---------------------------------------------------------------------------
+RUN set -eux \
+    # --- uv (Python package manager) ---
+    && curl -fsSL -o /tmp/uv.tar.gz \
+        "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz" \
+    && echo "${UV_SHA256}  /tmp/uv.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1 \
+    && rm /tmp/uv.tar.gz \
+    # --- chezmoi ---
+    && curl -fsSL -o /usr/local/bin/chezmoi \
+        "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi-linux-amd64" \
+    && echo "${CHEZMOI_SHA256}  /usr/local/bin/chezmoi" | sha256sum -c - \
+    && chmod +x /usr/local/bin/chezmoi \
+    # --- zoxide ---
+    && curl -fsSL -o /tmp/zoxide.tar.gz \
+        "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+    && echo "${ZOXIDE_SHA256}  /tmp/zoxide.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/zoxide.tar.gz -C /usr/local/bin zoxide \
+    && rm /tmp/zoxide.tar.gz \
+    # --- opencode ---
+    && curl -fsSL -o /tmp/opencode.tar.gz \
+        "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+    && echo "${OPENCODE_SHA256}  /tmp/opencode.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode \
+    && chmod +x /usr/local/bin/opencode \
+    && rm /tmp/opencode.tar.gz \
+    # --- microsandbox ---
+    && curl -fsSL -o /tmp/msb.tar.gz \
+        "https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz" \
+    && echo "${MSB_SHA256}  /tmp/msb.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/msb.tar.gz -C /usr/local/bin msb \
+    && rm /tmp/msb.tar.gz
+
+# ---------------------------------------------------------------------------
 # Rust toolchain + cargo binaries from builder
 # ---------------------------------------------------------------------------
 COPY --from=builder /opt/rustup /opt/rustup
@@ -183,18 +273,26 @@ RUN for bin in just hyperfine tokei btm dust procs sd tldr bandwhich \
 # ---------------------------------------------------------------------------
 # Shell + prompt configuration
 # ---------------------------------------------------------------------------
-COPY config/zshrc /home/agent/.zshrc
-COPY config/interactive.zsh /home/agent/.zsh/interactive.zsh
-COPY config/starship.toml /home/agent/.config/starship.toml
-RUN chown -R agent:agent /home/agent/.zshrc /home/agent/.zsh /home/agent/.config/starship.toml
+COPY config/ /tmp/config/
+RUN cp /tmp/config/zshrc /home/agent/.zshrc \
+    && mkdir -p /home/agent/.zsh \
+    && cp /tmp/config/interactive.zsh /home/agent/.zsh/interactive.zsh \
+    && cp /tmp/config/starship.toml /home/agent/.config/starship.toml \
+    && cp /tmp/config/plugin-versions /home/agent/.plugin-versions \
+    && chown -R agent:agent /home/agent/.zshrc /home/agent/.zsh /home/agent/.config/starship.toml /home/agent/.plugin-versions \
+    && rm -rf /tmp/config
 
 # ---------------------------------------------------------------------------
 # AI coding agents + language runtimes (runs as agent user)
+# Claude Code's own installer verifies SHA256 from its manifest — it's the
+# one curl|sh we tolerate because the script is the only distribution channel
+# and it does its own integrity check on the binary it downloads.
 # ---------------------------------------------------------------------------
-COPY scripts/install-tools.sh /tmp/install-tools.sh
-RUN chmod +x /tmp/install-tools.sh \
-    && su - agent -c /tmp/install-tools.sh \
-    && rm /tmp/install-tools.sh
+COPY scripts/ /tmp/scripts/
+RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
+    && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
+    && su - agent -c /tmp/scripts/install-tools.sh \
+    && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
 
 # ---------------------------------------------------------------------------
 # Final security pass
