@@ -1,5 +1,5 @@
 #!/bin/bash
-# Initialize a persistent home directory for the claude-sandbox agent.
+# Initialize a persistent home directory for the agent-sandbox agent.
 #
 # This creates the directory structure that gets mounted as /home/agent.
 # Populate the files described below before running the container.
@@ -55,7 +55,7 @@ cat > "$TARGET/.config/gh/README" << 'GHREADME'
 #
 #   2. Or run gh auth login inside the container:
 #      podman run -it --rm -v $PWD:/home/agent/.config/gh:Z \
-#        --entrypoint gh claude-sandbox auth login
+#        --entrypoint gh agent-sandbox auth login
 GHREADME
 
 cat > "$TARGET/.claude/README" << 'CLAUDEREADME'

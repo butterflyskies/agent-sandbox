@@ -1,6 +1,6 @@
 # Version pinning and update methodology
 
-This document describes how tool versions are pinned in claude-sandbox and
+This document describes how tool versions are pinned in agent-sandbox and
 how to validate and update them.
 
 ## Principles
@@ -145,7 +145,7 @@ curl -fsSL https://api.github.com/repos/asdf-vm/asdf/releases/latest | jq -r '.t
    git ls-remote <plugin-url> HEAD | cut -f1
    ```
 5. Rebuild: `./build.sh`
-6. Smoke test: `podman run -it --rm --entrypoint zsh claude-sandbox`
+6. Smoke test: `podman run -it --rm --entrypoint zsh agent-sandbox`
 7. Commit with a message listing what changed.
 
 ## Known gaps

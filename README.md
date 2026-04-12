@@ -1,4 +1,4 @@
-# claude-sandbox
+# agent-sandbox
 
 OCI container image for running AI coding agents — primarily [Claude Code](https://docs.anthropic.com/en/docs/claude-code), but also ships OpenAI Codex, Google Gemini CLI, OpenCode, and [microsandbox](https://github.com/microsandbox/microsandbox).
 
@@ -28,7 +28,7 @@ cp ~/.config/gh/hosts.yml home/.config/gh/
 ./build.sh
 
 # With Docker instead
-docker build -t claude-sandbox -f Containerfile .
+docker build -t agent-sandbox -f Containerfile .
 
 # With registry cache for CI
 REGISTRY=ghcr.io/yourorg/yourrepo ./build.sh
@@ -52,7 +52,7 @@ Override the home volume or image:
 
 ```bash
 HOME_VOL=/path/to/my/home ./run/claude.sh
-IMAGE=ghcr.io/org/claude-sandbox:latest ./run/claude.sh
+IMAGE=ghcr.io/org/agent-sandbox:latest ./run/claude.sh
 ```
 
 ### With Podman
@@ -64,21 +64,21 @@ podman run -it --rm \
   -v ~/.gitconfig:/home/agent/.gitconfig:ro,Z \
   -v ~/.config/gh:/home/agent/.config/gh:ro,Z \
   -e ANTHROPIC_API_KEY \
-  claude-sandbox
+  agent-sandbox
 ```
 
 Shell instead of Claude:
 
 ```bash
-podman run -it --rm --entrypoint zsh claude-sandbox
+podman run -it --rm --entrypoint zsh agent-sandbox
 ```
 
 Different agent:
 
 ```bash
-podman run -it --rm --entrypoint codex -e OPENAI_API_KEY claude-sandbox
-podman run -it --rm --entrypoint gemini -e GEMINI_API_KEY claude-sandbox
-podman run -it --rm --entrypoint opencode claude-sandbox
+podman run -it --rm --entrypoint codex -e OPENAI_API_KEY agent-sandbox
+podman run -it --rm --entrypoint gemini -e GEMINI_API_KEY agent-sandbox
+podman run -it --rm --entrypoint opencode agent-sandbox
 ```
 
 ### With Docker
@@ -90,7 +90,7 @@ docker run -it --rm \
   -v ~/.gitconfig:/home/agent/.gitconfig:ro \
   -v ~/.config/gh:/home/agent/.config/gh:ro \
   -e ANTHROPIC_API_KEY \
-  claude-sandbox
+  agent-sandbox
 ```
 
 Note: Docker doesn't need the `:Z` SELinux relabel suffix that Podman requires on Fedora/RHEL. If you're on macOS with OrbStack or Docker Desktop, volume mounts work as-is.
@@ -98,7 +98,7 @@ Note: Docker doesn't need the `:Z` SELinux relabel suffix that Podman requires o
 Shell:
 
 ```bash
-docker run -it --rm --entrypoint zsh claude-sandbox
+docker run -it --rm --entrypoint zsh agent-sandbox
 ```
 
 ### With Docker Compose
@@ -107,7 +107,7 @@ docker run -it --rm --entrypoint zsh claude-sandbox
 # compose.yml
 services:
   claude:
-    image: claude-sandbox
+    image: agent-sandbox
     stdin_open: true
     tty: true
     environment:
@@ -128,16 +128,16 @@ From the host (requires msb installed and KVM enabled):
 
 ```bash
 # One-off run
-msb run claude-sandbox -- claude
+msb run agent-sandbox -- claude
 
 # Named persistent sandbox
-msb create --name my-agent claude-sandbox
+msb create --name my-agent agent-sandbox
 msb exec my-agent -- claude
 msb exec my-agent -- zsh
 msb stop my-agent
 
 # Install as a system command
-msb install --name claude claude-sandbox
+msb install --name claude agent-sandbox
 claude  # launches a microVM every time
 ```
 
@@ -243,7 +243,7 @@ podman run -it --rm \
   --read-only --tmpfs /tmp \
   -v ./home:/home/agent:Z \
   -e ANTHROPIC_API_KEY \
-  claude-sandbox
+  agent-sandbox
 ```
 
 ```bash
@@ -253,7 +253,7 @@ docker run -it --rm \
   --read-only --tmpfs /tmp \
   -v ./home:/home/agent \
   -e ANTHROPIC_API_KEY \
-  claude-sandbox
+  agent-sandbox
 ```
 
 | Flag | Effect |

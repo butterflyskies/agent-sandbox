@@ -1,4 +1,4 @@
-# claude-sandbox — OCI image for running AI coding agents in microsandbox
+# agent-sandbox — OCI image for running AI coding agents in microsandbox
 #
 # Design:
 #   - Claude Code (native binary) is the default entrypoint
@@ -18,13 +18,13 @@
 #     -v ~/.gitconfig.ai:/home/agent/.gitconfig:ro,Z \
 #     -v ~/.config/gh:/home/agent/.config/gh:ro,Z \
 #     -e ANTHROPIC_API_KEY \
-#     claude-sandbox
+#     agent-sandbox
 #
 # Shell instead of claude:
-#   podman run -it --rm --entrypoint zsh claude-sandbox
+#   podman run -it --rm --entrypoint zsh agent-sandbox
 #
 # Different agent:
-#   podman run -it --rm --entrypoint codex claude-sandbox
+#   podman run -it --rm --entrypoint codex agent-sandbox
 
 # =============================================================================
 # Pinned versions — update these together when bumping
@@ -125,7 +125,7 @@ ARG OPENCODE_VERSION OPENCODE_SHA256
 ARG MSB_VERSION MSB_SHA256
 
 LABEL description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
-      org.opencontainers.image.source="https://github.com/butterflyskies/claude-sandbox"
+      org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox"
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \

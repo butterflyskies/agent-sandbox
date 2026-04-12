@@ -1,8 +1,8 @@
 #!/bin/bash
-# Build claude-sandbox OCI image with cache mounts
+# Build agent-sandbox OCI image with cache mounts
 set -euo pipefail
 
-IMAGE_NAME="${IMAGE_NAME:-claude-sandbox}"
+IMAGE_NAME="${IMAGE_NAME:-agent-sandbox}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 REGISTRY="${REGISTRY:-}"
 
@@ -12,7 +12,7 @@ ARGS=(
     --layers
 )
 
-# Registry-backed cache (set REGISTRY to enable, e.g. ghcr.io/butterflyskies/claude-sandbox)
+# Registry-backed cache (set REGISTRY to enable, e.g. ghcr.io/butterflyskies/agent-sandbox)
 if [[ -n "$REGISTRY" ]]; then
     ARGS+=(
         --cache-from="${REGISTRY}-cache"
