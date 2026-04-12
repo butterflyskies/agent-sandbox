@@ -15,8 +15,8 @@ ARGS=(
 # Registry-backed cache (set REGISTRY to enable, e.g. ghcr.io/butterflyskies/claude-sandbox)
 if [[ -n "$REGISTRY" ]]; then
     ARGS+=(
-        --cache-from="${REGISTRY}/cache"
-        --cache-to="type=image,ref=${REGISTRY}/cache"
+        --cache-from="${REGISTRY}-cache"
+        --cache-to="${REGISTRY}-cache"
     )
 fi
 

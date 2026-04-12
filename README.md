@@ -66,8 +66,8 @@ For CI or cross-machine cache sharing, use registry-backed caching:
 ```bash
 podman build \
   --layers \
-  --cache-from=ghcr.io/butterflyskies/claude-sandbox/cache \
-  --cache-to=type=image,ref=ghcr.io/butterflyskies/claude-sandbox/cache \
+  --cache-from=ghcr.io/butterflyskies/claude-sandbox-cache \
+  --cache-to=ghcr.io/butterflyskies/claude-sandbox-cache \
   -t claude-sandbox -f Containerfile .
 ```
 
