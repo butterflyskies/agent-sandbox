@@ -101,7 +101,7 @@ echo "mvn $(mvn --version 2>/dev/null | head -1)"
 # Claude Code (native binary — installer self-verifies via SHA256 manifest)
 # ==========================================================================
 echo "--- Installing Claude Code ---"
-curl -fsSL https://claude.ai/install.sh | sh
+bash /tmp/scripts/claude-install.sh
 echo "claude: $(claude --version 2>/dev/null || echo 'installed')"
 
 # ==========================================================================

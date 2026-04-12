@@ -194,7 +194,22 @@ RUN apt-get update \
         -o /etc/apt/keyrings/smallstep.asc \
     && printf 'Types: deb\nURIs: https://packages.smallstep.com/stable/debian\nSuites: debs\nComponents: main\nSigned-By: /etc/apt/keyrings/smallstep.asc\n' \
         > /etc/apt/sources.list.d/smallstep.sources \
-    && apt-get update && apt-get install -y gh eza step-cli \
+    # --- third-party apt: Google Cloud CLI ---
+    && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+        > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    # --- third-party apt: AWS CLI v2 ---
+    && curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip \
+    # --- third-party apt: Azure CLI ---
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ noble main" \
+        > /etc/apt/sources.list.d/azure-cli.list \
+    && apt-get update && apt-get install -y gh eza step-cli google-cloud-cli azure-cli \
     # --- locale ---
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
     # --- default editor ---
@@ -252,12 +267,16 @@ RUN set -eux \
     && tar xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode \
     && chmod +x /usr/local/bin/opencode \
     && rm /tmp/opencode.tar.gz \
-    # --- microsandbox ---
+    # --- microsandbox (binary + libkrunfw runtime lib) ---
     && curl -fsSL -o /tmp/msb.tar.gz \
         "https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz" \
     && echo "${MSB_SHA256}  /tmp/msb.tar.gz" | sha256sum -c - \
-    && tar xzf /tmp/msb.tar.gz -C /usr/local/bin msb \
-    && rm /tmp/msb.tar.gz
+    && tar xzf /tmp/msb.tar.gz -C /tmp msb libkrunfw.so.5.2.1 \
+    && install -m 755 /tmp/msb /usr/local/bin/msb \
+    && install -m 755 /tmp/libkrunfw.so.5.2.1 /usr/local/lib/ \
+    && ln -sf libkrunfw.so.5.2.1 /usr/local/lib/libkrunfw.so \
+    && ldconfig \
+    && rm /tmp/msb /tmp/libkrunfw.so.5.2.1 /tmp/msb.tar.gz
 
 # ---------------------------------------------------------------------------
 # Rust toolchain + cargo binaries from builder
@@ -284,14 +303,14 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
 
 # ---------------------------------------------------------------------------
 # AI coding agents + language runtimes (runs as agent user)
-# Claude Code's own installer verifies SHA256 from its manifest — it's the
-# one curl|sh we tolerate because the script is the only distribution channel
-# and it does its own integrity check on the binary it downloads.
+# Claude Code installer is vendored in scripts/claude-install.sh — it
+# verifies the binary SHA256 from a manifest before execution. The script
+# itself is snapshotted at build time; Claude Code self-updates at runtime.
 # ---------------------------------------------------------------------------
 COPY scripts/ /tmp/scripts/
 RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
     && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
-    && su - agent -c /tmp/scripts/install-tools.sh \
+    && su - agent -c "bash /tmp/scripts/install-tools.sh" \
     && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
 
 # ---------------------------------------------------------------------------
