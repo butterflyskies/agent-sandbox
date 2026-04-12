@@ -19,9 +19,9 @@ case "$ARCH" in
     *)       echo "Unsupported arch: $ARCH" >&2; exit 1 ;;
 esac
 ASDF_URL=$(curl -fsSL https://api.github.com/repos/asdf-vm/asdf/releases/latest \
-    | jq -r ".assets[] | select(.name | test(\"linux.*${ASDF_ARCH}\")) | .browser_download_url" \
+    | jq -r ".assets[] | select(.name | test(\"linux-${ASDF_ARCH}\\\\.tar\\\\.gz$\")) | .browser_download_url" \
     | head -1)
-curl -fsSL "$ASDF_URL" -o "$ASDF_BIN/asdf"
+curl -fsSL "$ASDF_URL" | tar xz -C "$ASDF_BIN"
 chmod +x "$ASDF_BIN/asdf"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$ASDF_BIN:$ASDF_DATA_DIR/shims:$NPM_CONFIG_PREFIX/bin:/opt/cargo/bin:$PATH"
 echo "asdf $(asdf version)"

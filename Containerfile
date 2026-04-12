@@ -7,8 +7,16 @@
 #   - No credentials baked in — mount them at runtime
 #   - Single non-root user (agent), no SSH daemon
 #
-# Usage:
+# Build:
 #   podman build -t claude-sandbox -f Containerfile .
+#
+# Build with registry cache (CI or shared builds):
+#   podman build \
+#     --cache-from=ghcr.io/butterflyskies/claude-sandbox:buildcache \
+#     --cache-to=ghcr.io/butterflyskies/claude-sandbox:buildcache \
+#     -t claude-sandbox -f Containerfile .
+#
+# Run:
 #   podman run -it --rm \
 #     -v ~/dev:/home/agent/dev:Z \
 #     -v ~/.claude:/home/agent/.claude:Z \
@@ -36,13 +44,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential cmake pkg-config libssl-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    # --- rust toolchain ---
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
         | sh -s -- -y --default-toolchain stable --profile minimal \
     && . /opt/cargo/env \
-    && rustup component add rust-analyzer clippy rustfmt \
-    # --- cargo tools ---
-    && cargo install --locked \
+    && rustup component add rust-analyzer clippy rustfmt
+
+# Cargo tools — cache mounts keep the registry index and compiled artifacts
+# across builds so only new/changed crates recompile.
+RUN --mount=type=cache,target=/opt/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/opt/cargo/git,sharing=locked \
+    --mount=type=cache,target=/tmp/cargo-build,sharing=locked \
+    . /opt/cargo/env \
+    && CARGO_TARGET_DIR=/tmp/cargo-build cargo install --locked \
         just hyperfine tokei \
         bottom du-dust procs sd tealdeer bandwhich \
         cargo-watch cargo-edit cargo-outdated cargo-audit \
@@ -129,9 +142,7 @@ RUN apt-get update \
     # --- default editor ---
     && update-alternatives --install /usr/bin/editor editor /usr/bin/nvim 100 \
     && update-alternatives --set editor /usr/bin/nvim \
-    # --- standalone tools ---
-    && curl -sS https://starship.rs/install.sh | sh -s -- -y \
-    && curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR=/usr/local/bin bash \
+    # --- standalone tools (starship, zoxide, jj, atuin come from builder stage) ---
     && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \
     && sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin \
     # --- user setup ---
