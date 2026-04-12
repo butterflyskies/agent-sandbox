@@ -7,6 +7,7 @@
 # Usage: ./skeleton/init.sh [target-dir]
 #   Default target: ./home (relative to repo root)
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -50,8 +51,8 @@ cat > "$TARGET/.config/gh/README" << 'GHREADME'
 # GitHub CLI config
 #
 # To populate, either:
-#   1. Copy your existing gh config:
-#      cp ~/.config/gh/hosts.yml ./hosts.yml
+#   1. Copy your existing gh config into this directory:
+#      cp ~/.config/gh/hosts.yml .config/gh/hosts.yml
 #
 #   2. Or run gh auth login inside the container:
 #      podman run -it --rm -v $PWD:/home/agent/.config/gh:Z \

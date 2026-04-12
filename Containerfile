@@ -12,24 +12,16 @@
 #   ./build.sh
 #
 # Run:
-#   podman run -it --rm \
-#     -v ~/dev:/home/agent/dev:Z \
-#     -v ~/.claude:/home/agent/.claude:Z \
-#     -v ~/.gitconfig.ai:/home/agent/.gitconfig:ro,Z \
-#     -v ~/.config/gh:/home/agent/.config/gh:ro,Z \
-#     -e ANTHROPIC_API_KEY \
-#     agent-sandbox
-#
-# Shell instead of claude:
-#   podman run -it --rm --entrypoint zsh agent-sandbox
-#
-# Different agent:
-#   podman run -it --rm --entrypoint codex agent-sandbox
+#   ./run/claude.sh
 
 # =============================================================================
-# Pinned versions — update these together when bumping
+# Pinned versions — update these together when bumping (see VERSIONS.md)
 # =============================================================================
-# Cargo crate versions
+
+# Builder-stage: Rust toolchain
+ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+
+# Builder-stage: cargo crate versions
 ARG JUST_VERSION=1.49.0
 ARG HYPERFINE_VERSION=1.20.0
 ARG TOKEI_VERSION=14.0.0
@@ -47,8 +39,7 @@ ARG JJ_CLI_VERSION=0.40.0
 ARG STARSHIP_JJ_VERSION=0.7.0
 ARG ATUIN_VERSION=18.13.6
 
-# Standalone tool versions + checksums (linux x86_64)
-ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+# Runtime-stage: standalone tool versions + checksums (linux x86_64)
 ARG UV_VERSION=0.11.6
 ARG UV_SHA256=0c6bab77a67a445dc849ed5e8ee8d3cb333b6e2eba863643ce1e228075f27943
 ARG CHEZMOI_VERSION=2.70.1
@@ -59,6 +50,8 @@ ARG OPENCODE_VERSION=1.4.3
 ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
 ARG MSB_VERSION=0.3.12
 ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
+ARG AWSCLI_VERSION=2.34.29
+ARG AWSCLI_SHA256=8812e303cb4618ec495d39b94e4f338cf37d274007ca89faf587a0bc4792cd0e
 
 # =============================================================================
 # Stage 1: cargo binary builder
@@ -123,6 +116,7 @@ ARG CHEZMOI_VERSION CHEZMOI_SHA256
 ARG ZOXIDE_VERSION ZOXIDE_SHA256
 ARG OPENCODE_VERSION OPENCODE_SHA256
 ARG MSB_VERSION MSB_SHA256
+ARG AWSCLI_VERSION AWSCLI_SHA256
 
 LABEL description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
       org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox"
@@ -142,7 +136,7 @@ ENV LANG=en_US.UTF-8 \
     ASDF_DATA_DIR=/home/agent/.asdf \
     EDITOR=nvim \
     VISUAL=nvim \
-    PATH="/home/agent/.local/bin:/home/agent/.cargo/bin:/home/agent/.asdf/shims:/home/agent/.asdf/bin:/home/agent/.npm-global/bin:/opt/cargo/bin:${PATH}"
+    PATH="/home/agent/.local/bin:/home/agent/.asdf/shims:/home/agent/.asdf/bin:/home/agent/.npm-global/bin:/opt/cargo/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
 # System packages + third-party apt repos + locale + user — single layer
@@ -184,10 +178,12 @@ RUN apt-get update \
     && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
         > /etc/apt/sources.list.d/github-cli.list \
-    # --- third-party apt: eza ---
-    && curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
-        | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+    # --- third-party apt: eza (key pinned to commit) ---
+    && curl -fsSL https://raw.githubusercontent.com/eza-community/eza/1cff499fb218f2a133aafa01824ddab090f4389e/deb.asc \
+        -o /tmp/eza.asc \
+    && gpg --dearmor < /tmp/eza.asc > /etc/apt/keyrings/gierens.gpg \
+    && rm /tmp/eza.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] https://deb.gierens.de stable main" \
         > /etc/apt/sources.list.d/gierens.list \
     # --- third-party apt: step-cli ---
     && curl -fsSL https://packages.smallstep.com/keys/apt/repo-signing-key.gpg \
@@ -199,17 +195,19 @@ RUN apt-get update \
         | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
         > /etc/apt/sources.list.d/google-cloud-sdk.list \
-    # --- third-party apt: AWS CLI v2 ---
-    && curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip \
-    && unzip -q /tmp/awscliv2.zip -d /tmp \
-    && /tmp/aws/install \
-    && rm -rf /tmp/aws /tmp/awscliv2.zip \
     # --- third-party apt: Azure CLI ---
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ noble main" \
         > /etc/apt/sources.list.d/azure-cli.list \
     && apt-get update && apt-get install -y gh eza step-cli google-cloud-cli azure-cli \
+    # --- AWS CLI v2: pinned version, SHA256-verified ---
+    && curl -fsSL -o /tmp/awscliv2.zip \
+        "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
+    && echo "${AWSCLI_SHA256}  /tmp/awscliv2.zip" | sha256sum -c - \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip \
     # --- locale ---
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
     # --- default editor ---
@@ -227,7 +225,6 @@ RUN apt-get update \
         /home/agent/.local/bin \
         /home/agent/.local/share \
         /home/agent/.local/state/zsh \
-        /home/agent/.cargo/bin \
         /home/agent/.config \
         /home/agent/.cache \
         /home/agent/.asdf \
@@ -247,8 +244,10 @@ RUN set -eux \
     && curl -fsSL -o /tmp/uv.tar.gz \
         "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz" \
     && echo "${UV_SHA256}  /tmp/uv.tar.gz" | sha256sum -c - \
-    && tar xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1 \
-    && rm /tmp/uv.tar.gz \
+    && tar xzf /tmp/uv.tar.gz -C /tmp \
+    && install -m 755 /tmp/uv-x86_64-unknown-linux-gnu/uv /usr/local/bin/uv \
+    && install -m 755 /tmp/uv-x86_64-unknown-linux-gnu/uvx /usr/local/bin/uvx \
+    && rm -rf /tmp/uv.tar.gz /tmp/uv-x86_64-unknown-linux-gnu \
     # --- chezmoi ---
     && curl -fsSL -o /usr/local/bin/chezmoi \
         "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi-linux-amd64" \
@@ -274,7 +273,8 @@ RUN set -eux \
     && tar xzf /tmp/msb.tar.gz -C /tmp msb libkrunfw.so.5.2.1 \
     && install -m 755 /tmp/msb /usr/local/bin/msb \
     && install -m 755 /tmp/libkrunfw.so.5.2.1 /usr/local/lib/ \
-    && ln -sf libkrunfw.so.5.2.1 /usr/local/lib/libkrunfw.so \
+    && ln -sf libkrunfw.so.5.2.1 /usr/local/lib/libkrunfw.so.5 \
+    && ln -sf libkrunfw.so.5 /usr/local/lib/libkrunfw.so \
     && ldconfig \
     && rm /tmp/msb /tmp/libkrunfw.so.5.2.1 /tmp/msb.tar.gz
 
@@ -283,11 +283,16 @@ RUN set -eux \
 # ---------------------------------------------------------------------------
 COPY --from=builder /opt/rustup /opt/rustup
 COPY --from=builder /opt/cargo /opt/cargo
-RUN for bin in just hyperfine tokei btm dust procs sd tldr bandwhich \
-               cargo-watch cargo-audit cargo cargo-clippy cargo-fmt \
-               rustc rustup rust-analyzer rustfmt jj starship-jj atuin; do \
-        [ -f "/opt/cargo/bin/$bin" ] && ln -sf "/opt/cargo/bin/$bin" "/usr/local/bin/$bin"; \
-    done
+# Symlink all cargo-installed binaries + rustup toolchain binaries into PATH
+RUN for bin in /opt/cargo/bin/*; do \
+        ln -sf "$bin" "/usr/local/bin/$(basename "$bin")"; \
+    done \
+    && TOOLCHAIN_BIN="$(find /opt/rustup/toolchains -maxdepth 2 -name bin -type d | head -1)" \
+    && if [ -n "$TOOLCHAIN_BIN" ]; then \
+        for bin in cargo-clippy cargo-fmt rust-analyzer rustfmt; do \
+            [ -f "$TOOLCHAIN_BIN/$bin" ] && ln -sf "$TOOLCHAIN_BIN/$bin" "/usr/local/bin/$bin"; \
+        done; \
+    fi
 
 # ---------------------------------------------------------------------------
 # Shell + prompt configuration
@@ -317,7 +322,7 @@ RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
 # Final security pass
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get upgrade -y \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
 # Runtime

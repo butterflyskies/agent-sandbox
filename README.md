@@ -38,7 +38,7 @@ REGISTRY=ghcr.io/yourorg/yourrepo ./build.sh
 
 ### With the run scripts (recommended)
 
-The `run/` scripts mount `./home/` as a persistent volume and apply hardening flags by default.
+The `run/` scripts mount `./home/` as a persistent volume and apply hardening flags by default (`--cap-drop=ALL`, `--read-only`, `--security-opt=no-new-privileges`). They auto-detect and forward any set API keys.
 
 ```bash
 ./run/claude.sh              # Claude Code (default)
@@ -48,11 +48,12 @@ The `run/` scripts mount `./home/` as a persistent volume and apply hardening fl
 ./run/msb-claude.sh          # Claude Code inside microsandbox microVM
 ```
 
-Override the home volume or image:
+Override the container runtime, home volume, or image:
 
 ```bash
-HOME_VOL=/path/to/my/home ./run/claude.sh
-IMAGE=ghcr.io/org/agent-sandbox:latest ./run/claude.sh
+CONTAINER_RUNTIME=docker ./run/claude.sh            # Use Docker instead of Podman
+HOME_VOL=/path/to/my/home ./run/claude.sh           # Custom home volume
+IMAGE=ghcr.io/org/agent-sandbox:latest ./run/claude.sh  # Custom image
 ```
 
 ### With Podman

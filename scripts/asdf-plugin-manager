@@ -112,8 +112,9 @@ validate_plugin_git_url() {
     if [[ -n "${plugin_url_installed}" && "${plugin_url_installed}" != "${plugin_url}" ]]; then
         printf "%s %s %s\n" \
             "[CRIT] The managed plugin ${plugin_name} repo is ${plugin_url}" \
-            "which differs from the currency installed one ${plugin_url_installed}!" \
-            "This probably implies a security threat!"
+            "which differs from the currently installed one ${plugin_url_installed}!" \
+            "Aborting — this may indicate a supply chain compromise." >&2
+        exit 1
     fi
 }
 

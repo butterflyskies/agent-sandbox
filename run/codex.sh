@@ -4,7 +4,4 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-exec podman run "${PODMAN_ARGS[@]}" \
-    --entrypoint codex \
-    -e OPENAI_API_KEY \
-    "$IMAGE" "$@"
+exec "$RUNTIME" run "${RUNTIME_ARGS[@]}" --entrypoint codex "$IMAGE" "$@"
