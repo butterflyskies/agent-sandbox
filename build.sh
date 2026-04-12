@@ -21,7 +21,20 @@ if [[ -n "$REGISTRY" ]]; then
 fi
 
 echo "Building ${IMAGE_NAME}:${IMAGE_TAG}..."
-podman build "${ARGS[@]}" .
+if [[ -n "$REGISTRY" ]]; then
+    # Registry cache is best-effort — fall back to local-only on auth/push failure
+    if ! podman build "${ARGS[@]}" . 2>&1; then
+        echo ""
+        echo "Registry cache failed (likely token scope). Retrying without registry cache..."
+        podman build \
+            --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
+            --file Containerfile \
+            --layers \
+            .
+    fi
+else
+    podman build "${ARGS[@]}" .
+fi
 
 echo ""
 echo "Done. Run with:"
