@@ -47,11 +47,16 @@ export PATH="$HOME/.local/bin:$ASDF_BIN:$ASDF_DATA_DIR/shims:$NPM_CONFIG_PREFIX/
 echo "asdf $(asdf version)"
 
 # ==========================================================================
-# asdf plugins (add all upfront, installs below)
+# asdf plugins — pinned to exact git SHAs via asdf-plugin-manager
+# The manager script is vendored in scripts/ to avoid a bootstrap cycle.
+# Plugin URLs and SHAs are declared in ~/.plugin-versions (from config/).
 # ==========================================================================
-for plugin in nodejs python java golang ruby zig bun pnpm gradle maven; do
-    asdf plugin add "$plugin" 2>/dev/null || true
-done
+export ASDF_PLUGIN_MANAGER_PLUGIN_VERSIONS_FILENAME="$HOME/.plugin-versions"
+[[ -f "$ASDF_PLUGIN_MANAGER_PLUGIN_VERSIONS_FILENAME" ]] || {
+    echo "plugin-versions not found at $ASDF_PLUGIN_MANAGER_PLUGIN_VERSIONS_FILENAME" >&2
+    exit 1
+}
+/tmp/asdf-plugin-manager add-all
 
 # ==========================================================================
 # Language runtimes — pinned to exact versions
@@ -107,11 +112,12 @@ MAVEN_VER="$(mvn --version 2>/dev/null | head -1 || echo "$MAVEN_VERSION")"
 echo "maven $MAVEN_VER"
 
 # ==========================================================================
-# Claude Code (native binary)
+# Claude Code (vendored installer — self-verifies binary via SHA256 manifest)
 # ==========================================================================
 echo "--- Installing Claude Code ---"
-curl -fsSL https://claude.ai/install.sh | sh
-echo "claude: $(claude --version 2>/dev/null || echo 'installed')"
+bash /tmp/scripts/claude-install.sh
+CLAUDE_PATH="$(which claude 2>/dev/null || echo '/home/agent/.local/bin/claude')"
+echo "claude: $CLAUDE_PATH"
 
 # ==========================================================================
 # npm-based AI CLIs — pinned versions
@@ -140,10 +146,14 @@ echo "  pnpm     : $PNPM_VER"
 echo "  Gradle   : $GRADLE_VER"
 echo "  Maven    : $MAVEN_VER"
 echo "  Rust     : $(rustc --version 2>/dev/null || echo 'in /usr/local/bin')"
-echo "  Claude   : $(which claude 2>/dev/null || echo 'installed')"
+echo "  Claude   : $CLAUDE_PATH"
 echo "  Codex    : $(which codex 2>/dev/null || echo 'check PATH')"
 echo "  Gemini   : $(which gemini 2>/dev/null || echo 'check PATH')"
 echo "  OpenCode : $(which opencode 2>/dev/null || echo '/usr/local/bin')"
+echo "  msb      : $(msb --version 2>/dev/null || echo '/usr/local/bin')"
 echo "  jj       : $(jj --version 2>/dev/null || echo '/usr/local/bin')"
 echo "  chezmoi  : $(chezmoi --version 2>/dev/null || echo '/usr/local/bin')"
 echo "  step     : $(step version 2>/dev/null | head -1 || echo 'installed')"
+echo "  gcloud   : $(gcloud --version 2>/dev/null | head -1 || echo 'installed')"
+echo "  aws      : $(aws --version 2>/dev/null || echo 'installed')"
+echo "  az       : $(az --version 2>/dev/null | head -1 || echo 'installed')"
