@@ -123,7 +123,7 @@ ARG BUILD_DATE=unknown
 ARG GIT_SHA=unknown
 
 LABEL org.opencontainers.image.title="agent-sandbox" \
-      org.opencontainers.image.description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
+      org.opencontainers.image.description="AI coding agent sandbox — polyglot dev environment for coding agents" \
       org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox" \
       org.opencontainers.image.version="${IMAGE_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
