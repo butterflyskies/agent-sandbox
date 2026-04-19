@@ -89,7 +89,7 @@ if command -v asdf &>/dev/null && asdf current java &>/dev/null 2>&1; then
     export JAVA_HOME="$(asdf env javac 2>/dev/null | grep JAVA_HOME | cut -d= -f2)"
 fi
 
-##### JAVA_HOME re-export after asdf shims are live
-if command -v java &>/dev/null; then
-    export JAVA_HOME="${JAVA_HOME:-$(dirname $(dirname $(readlink -f $(asdf which java 2>/dev/null) 2>/dev/null) 2>/dev/null) 2>/dev/null)}"
+##### JAVA_HOME (let asdf's java plugin provide the canonical value)
+if command -v asdf &>/dev/null && asdf current java &>/dev/null 2>&1; then
+    export JAVA_HOME="$(asdf env javac 2>/dev/null | grep JAVA_HOME | cut -d= -f2)"
 fi
