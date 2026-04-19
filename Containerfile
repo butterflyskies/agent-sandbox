@@ -9,10 +9,10 @@
 #   - All tool downloads are pinned to specific versions with SHA256 verification
 #
 # Build:
-#   ./build.sh
+#   just build
 #
 # Run:
-#   ./run/claude.sh
+#   just claude
 
 # =============================================================================
 # Pinned versions — update these together when bumping (see VERSIONS.md)

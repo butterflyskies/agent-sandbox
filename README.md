@@ -8,49 +8,52 @@ Designed for use with microsandbox, Podman, or Docker, with volume mounts for so
 
 ```bash
 # Build the image
-./build.sh
+just build
 
 # Initialize a persistent home directory
-./skeleton/init.sh
+just init
 
 # Populate your identity (edit these before first run)
 vi home/.gitconfig
 cp ~/.config/gh/hosts.yml home/.config/gh/
 
 # Run Claude Code
-./run/claude.sh
+just claude
 ```
 
 ## Building
 
 ```bash
 # Local build (uses Podman layer cache automatically)
-./build.sh
+just build
 
 # With Docker instead
-CONTAINER_RUNTIME=docker ./build.sh
+CONTAINER_RUNTIME=docker just build
+
+# Build and push to registry
+REGISTRY=ghcr.io/yourorg just release
 ```
 
 ## Running
 
-### With the run scripts (recommended)
+### With just (recommended)
 
-All run scripts mount `./home/` as a persistent volume, apply runtime-appropriate hardening, and auto-detect and forward any set API keys.
+All `just` recipes mount `./home/` as a persistent volume, apply runtime-appropriate hardening, and auto-detect and forward any set API keys. Supports Podman (default), Docker, and microsandbox.
 
 ```bash
-./run/claude.sh                  # Claude Code (default)
-./run/claude.sh --help           # Pass args to claude
-./run/codex.sh                   # OpenAI Codex
-./run/shell.sh                   # Interactive zsh shell
-./run/msb-claude.sh              # Claude Code in microsandbox microVM
+just claude                  # Claude Code (default)
+just claude --help           # Pass args to claude
+just codex                   # OpenAI Codex
+just shell                   # Interactive zsh shell
 ```
 
 Override the container runtime, home volume, or image:
 
 ```bash
-CONTAINER_RUNTIME=docker ./run/claude.sh                # Use Docker instead of Podman
-HOME_VOL=/path/to/my/home ./run/claude.sh               # Custom home volume
-IMAGE=ghcr.io/org/agent-sandbox:latest ./run/claude.sh   # Custom image
+CONTAINER_RUNTIME=docker just claude                # Use Docker instead of Podman
+CONTAINER_RUNTIME=msb just claude                   # Use microsandbox microVM
+HOME_VOL=/path/to/my/home just claude               # Custom home volume
+IMAGE=ghcr.io/org/agent-sandbox:latest just claude   # Custom image
 ```
 
 ### With Podman
@@ -188,10 +191,10 @@ Local rebuilds benefit from cargo cache mounts automatically (`--mount=type=cach
 For CI or cross-machine cache sharing, push to a registry:
 
 ```bash
-podman push agent-sandbox:latest ghcr.io/yourorg/agent-sandbox:latest
+REGISTRY=ghcr.io/yourorg just release
 ```
 
-Set up your registry credentials with `podman login` first. Requires `write:packages` scope (or equivalent) for push.
+Set `REGISTRY` to your own OCI registry. Requires `write:packages` scope (or equivalent) for push.
 
 ## Supply chain security
 
