@@ -118,8 +118,16 @@ ARG OPENCODE_VERSION OPENCODE_SHA256
 ARG MSB_VERSION MSB_SHA256
 ARG AWSCLI_VERSION AWSCLI_SHA256
 
-LABEL description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
-      org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox"
+ARG IMAGE_VERSION=dev
+ARG BUILD_DATE=unknown
+ARG GIT_SHA=unknown
+
+LABEL org.opencontainers.image.title="agent-sandbox" \
+      org.opencontainers.image.description="AI coding agent sandbox — polyglot dev environment for coding agents" \
+      org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${GIT_SHA}"
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
@@ -134,6 +142,7 @@ ENV LANG=en_US.UTF-8 \
     CARGO_HOME=/opt/cargo \
     RUSTUP_HOME=/opt/rustup \
     ASDF_DATA_DIR=/home/agent/.asdf \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     EDITOR=nvim \
     VISUAL=nvim \
     PATH="/home/agent/.local/bin:/home/agent/.asdf/shims:/home/agent/.asdf/bin:/home/agent/.npm-global/bin:/opt/cargo/bin:${PATH}"
@@ -169,6 +178,7 @@ RUN apt-get update \
         python3 python3-pip python3-venv \
         # gnupg
         gnupg \
+    && update-ca-certificates \
     # --- symlink ubuntu-renamed binaries ---
     && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
     && ln -sf /usr/bin/batcat /usr/local/bin/bat \
@@ -233,6 +243,8 @@ RUN apt-get update \
         /home/agent/dev \
         /home/agent/projects \
     && chown -R agent:agent /home/agent \
+    # --- unprivileged ping ---
+    && echo 'net.ipv4.ping_group_range = 0 2147483647' > /etc/sysctl.d/99-ping.conf \
     # --- cleanup ---
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -322,7 +334,7 @@ RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
 # Final security pass
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get upgrade -y \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean
 
 # ---------------------------------------------------------------------------
 # Runtime
