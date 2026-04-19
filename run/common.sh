@@ -4,7 +4,9 @@
 # Environment overrides:
 #   CONTAINER_RUNTIME  podman (default), docker, or msb
 #   IMAGE              image name (default: agent-sandbox)
-#   HOME_VOL           persistent home directory path
+#   HOME_VOL           persistent home directory path (optional for msb)
+#   MSB_CPUS           override CPU count for msb (default: nproc/2, min 2)
+#   MSB_MEMORY         override memory for msb (default: MemTotal/2, min 2G)
 
 [[ -n "${BASH_SOURCE[0]:-}" ]] || { echo "common.sh must be sourced from bash" >&2; exit 1; }
 
@@ -15,55 +17,90 @@ RUNTIME="${CONTAINER_RUNTIME:-podman}"
 IMAGE="${IMAGE:-agent-sandbox}"
 HOME_VOL="${HOME_VOL:-${ROOT_DIR}/home}"
 
-if [[ ! -d "$HOME_VOL" ]]; then
-    echo "No persistent home at $HOME_VOL"
-    echo "Run 'just init' first, or set HOME_VOL to your volume path."
-    return 1 2>/dev/null || exit 1
+# For podman/docker, HOME_VOL must exist. msb uses --name-based persistence so it's optional.
+if [[ "$RUNTIME" != "msb" ]]; then
+    if [[ ! -d "$HOME_VOL" ]]; then
+        echo "No persistent home at $HOME_VOL"
+        echo "Run 'just init' first, or set HOME_VOL to your volume path."
+        return 1 2>/dev/null || exit 1
+    fi
 fi
 
 # API keys — forward all provider keys so any agent works from any entry point.
-# Only forward vars that are set on the host.
+declare -A API_KEY_HOSTS=(
+    [ANTHROPIC_API_KEY]="api.anthropic.com"
+    [OPENAI_API_KEY]="api.openai.com"
+    [GEMINI_API_KEY]="generativelanguage.googleapis.com"
+    [GOOGLE_API_KEY]="*.googleapis.com"
+)
 API_KEY_NAMES=(ANTHROPIC_API_KEY OPENAI_API_KEY GEMINI_API_KEY GOOGLE_API_KEY)
 API_KEY_ARGS=()
 for _key in "${API_KEY_NAMES[@]}"; do
     [[ -n "${!_key:-}" ]] || continue
     if [[ "$RUNTIME" == "msb" ]]; then
-        # msb requires explicit values: -e VAR=value
-        API_KEY_ARGS+=(-e "${_key}=${!_key}")
+        _host="${API_KEY_HOSTS[$_key]:-}"
+        if [[ -n "$_host" ]]; then
+            API_KEY_ARGS+=(--secret "${_key}=${!_key}@${_host}")
+        else
+            API_KEY_ARGS+=(-e "${_key}=${!_key}")
+        fi
     else
-        # podman/docker: -e VAR forwards from host environment
         API_KEY_ARGS+=(-e "$_key")
     fi
 done
 
 # Container runtime args — built per-runtime since CLIs differ significantly.
 if [[ "$RUNTIME" == "msb" ]]; then
-    # microsandbox: microVM-based, security handled at hypervisor level.
+    # Compute resource allocation: half of host resources, with minimums.
+    # MSB_CPUS / MSB_MEMORY override auto-detection; overrides skip the info line.
+    if [[ -z "${MSB_CPUS:-}" && -z "${MSB_MEMORY:-}" ]]; then
+        cpus=$(( $(nproc) / 2 ))
+        [[ "$cpus" -ge 2 ]] || cpus=2
+        _mem_raw=$(awk '/MemTotal/{print int($2/1024/1024/2)}' /proc/meminfo)
+        [[ "$_mem_raw" -ge 2 ]] || _mem_raw=2
+        memory="${_mem_raw}G"
+        echo "agent-sandbox: allocating ${cpus} CPUs, ${memory} memory" >&2
+    else
+        cpus="${MSB_CPUS:-$(( $(nproc) / 2 ))}"
+        [[ "$cpus" -ge 2 ]] || cpus=2
+        memory="${MSB_MEMORY:-$(( $(awk '/MemTotal/{print int($2/1024/1024/2)}' /proc/meminfo) ))G}"
+    fi
+
     RUNTIME_ARGS=(
         -t
-        -v "${HOME_VOL}:/home/agent"
+        --shell /bin/zsh
+        -c "$cpus"
+        -m "$memory"
+        --network-policy public-only
+        --on-secret-violation block-and-log
+        --tmpfs /tmp
+        --tmpfs /var/tmp
+        --tmpfs /run
         "${API_KEY_ARGS[@]}"
     )
+    # Only mount HOME_VOL if it exists or was explicitly set.
+    if [[ -d "$HOME_VOL" ]]; then
+        RUNTIME_ARGS+=(-v "${HOME_VOL}:/home/agent")
+    fi
 else
-    # podman / docker: OCI container runtime with kernel-level hardening.
     RUNTIME_ARGS=(
         -it --rm
         --cap-drop=ALL
         --security-opt=no-new-privileges
         --read-only
         --tmpfs /tmp:rw,noexec,nosuid
+        --tmpfs /var/tmp:rw,noexec,nosuid
+        --tmpfs /run:rw,noexec,nosuid
         --hostname agent-sandbox
         -v "${HOME_VOL}:/home/agent:z"
         "${API_KEY_ARGS[@]}"
     )
 fi
 
-# Run a command inside the sandbox, abstracting runtime CLI differences.
-# Usage: sandbox_exec <command> [args...]
 sandbox_exec() {
     local cmd="$1"; shift
     if [[ "$RUNTIME" == "msb" ]]; then
-        exec msb run "${RUNTIME_ARGS[@]}" "$IMAGE" -- "$cmd" "$@"
+        exec msb run "${RUNTIME_ARGS[@]}" --entrypoint "$cmd" "$IMAGE" "$@"
     else
         exec "$RUNTIME" run "${RUNTIME_ARGS[@]}" --entrypoint "$cmd" "$IMAGE" "$@"
     fi
