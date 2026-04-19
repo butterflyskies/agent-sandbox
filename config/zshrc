@@ -29,6 +29,7 @@ path=("$HOME/.local/bin" "$HOME/.cargo/bin" "$ASDF_DATA_DIR/shims" "$NPM_CONFIG_
 
 # asdf + starship are installed at build time in /usr/local/bin
 eval "$(starship init zsh)"
+eval "$(starship completions zsh)"
 if [[ -d "$ASDF_DATA_DIR" ]]; then
     fpath=("$ASDF_DATA_DIR/completions" $fpath)
 fi
