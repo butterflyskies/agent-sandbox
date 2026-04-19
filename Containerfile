@@ -89,6 +89,41 @@ ARG OPENCODE_VERSION=1.4.3
 ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
 
 # =============================================================================
+# Pinned versions — update these together when bumping (see VERSIONS.md)
+# =============================================================================
+
+# Builder-stage: Rust toolchain
+ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
+
+# Builder-stage: cargo crate versions
+ARG JUST_VERSION=1.49.0
+ARG HYPERFINE_VERSION=1.20.0
+ARG TOKEI_VERSION=14.0.0
+ARG BOTTOM_VERSION=0.12.3
+ARG DU_DUST_VERSION=1.2.4
+ARG PROCS_VERSION=0.14.11
+ARG SD_VERSION=1.0.0
+ARG TEALDEER_VERSION=1.8.1
+ARG BANDWHICH_VERSION=0.23.1
+ARG CARGO_WATCH_VERSION=8.5.3
+ARG CARGO_EDIT_VERSION=0.13.9
+ARG CARGO_OUTDATED_VERSION=0.18.0
+ARG CARGO_AUDIT_VERSION=0.22.1
+ARG JJ_CLI_VERSION=0.40.0
+ARG STARSHIP_JJ_VERSION=0.7.0
+ARG ATUIN_VERSION=18.13.6
+
+# Runtime-stage: standalone tool versions + checksums (linux x86_64)
+ARG UV_VERSION=0.11.6
+ARG UV_SHA256=0c6bab77a67a445dc849ed5e8ee8d3cb333b6e2eba863643ce1e228075f27943
+ARG CHEZMOI_VERSION=2.70.1
+ARG CHEZMOI_SHA256=3f51b236fa337abd1c48b4d893182553aabe2ddb4eff07737c4950d7bea5ed61
+ARG ZOXIDE_VERSION=0.9.9
+ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
+ARG OPENCODE_VERSION=1.4.3
+ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+
+# =============================================================================
 # Stage 1: cargo binary builder
 # =============================================================================
 FROM ubuntu:24.04 AS builder
