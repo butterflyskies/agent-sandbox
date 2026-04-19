@@ -4,7 +4,7 @@
 # Environment overrides:
 #   CONTAINER_RUNTIME  podman (default), docker, or msb
 #   IMAGE              image name (default: agent-sandbox)
-#   HOME_VOL           persistent home directory path (optional for msb)
+#   HOME_VOL           persistent home directory path (optional; ephemeral if unset/missing)
 #   MSB_CPUS           override CPU count for msb (default: nproc/2, min 2)
 #   MSB_MEMORY         override memory for msb (default: MemTotal/2, min 2G)
 
@@ -16,15 +16,6 @@ ROOT_DIR="${ROOT_DIR:-$(dirname "$SCRIPT_DIR")}"
 RUNTIME="${CONTAINER_RUNTIME:-podman}"
 IMAGE="${IMAGE:-agent-sandbox}"
 HOME_VOL="${HOME_VOL:-${ROOT_DIR}/home}"
-
-# For podman/docker, HOME_VOL must exist. msb uses --name-based persistence so it's optional.
-if [[ "$RUNTIME" != "msb" ]]; then
-    if [[ ! -d "$HOME_VOL" ]]; then
-        echo "No persistent home at $HOME_VOL"
-        echo "Run 'just init' first, or set HOME_VOL to your volume path."
-        return 1 2>/dev/null || exit 1
-    fi
-fi
 
 # API keys — forward all provider keys so any agent works from any entry point.
 declare -A API_KEY_HOSTS=(
@@ -84,7 +75,7 @@ if [[ "$RUNTIME" == "msb" ]]; then
     fi
 else
     RUNTIME_ARGS=(
-        -it --rm
+        -it
         --cap-drop=ALL
         --security-opt=no-new-privileges
         --read-only
@@ -92,9 +83,13 @@ else
         --tmpfs /var/tmp:rw,noexec,nosuid
         --tmpfs /run:rw,noexec,nosuid
         --hostname agent-sandbox
-        -v "${HOME_VOL}:/home/agent:z"
         "${API_KEY_ARGS[@]}"
     )
+    if [[ -d "$HOME_VOL" ]]; then
+        RUNTIME_ARGS+=(-v "${HOME_VOL}:/home/agent:z")
+    else
+        RUNTIME_ARGS+=(--rm)
+    fi
 fi
 
 sandbox_exec() {
