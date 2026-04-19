@@ -1,26 +1,31 @@
 format = """
 $username\
-[](bg:#35284f fg:#1e2130)\
+[](bg:#35284f fg:#1e2130)\
 $directory\
-[](bg:#653070 fg:#35284f)\
+[](bg:#653070 fg:#35284f)\
 ${custom.git_branch}\
 ${custom.git_status}\
 ${custom.jj}\
-[](bg:#853973 fg:#653070)\
+[](bg:#853973 fg:#653070)\
 $gradle\
 $java\
 $nodejs\
 $rust\
-[](bg:#a94858 fg:#853973)\
+[](bg:#a94858 fg:#853973)\
 $hostname\
-[](bg:#b38067 fg:#a94858)\
+[](bg:#b38067 fg:#a94858)\
 $time\
-[ ](bg:#2a3058 fg:#b38067)\
+[ ](bg:#2a3058 fg:#b38067)\
 $status\
-[ ](bg:#1e2130 fg:#2a3058)\
+[ ](bg:#1e2130 fg:#2a3058)\
 $line_break \
 """
 
+# Disable the blank line at the start of the prompt
+# add_newline = false
+
+# You can also replace your username with a neat symbol like   or disable this
+# and use the os module below
 [username]
 show_always = true
 style_user = "bg:#1e2130"
@@ -34,11 +39,18 @@ format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
 
+# Here is how you can shorten some long paths by text replacement
+# similar to mapped_locations in Oh My Posh:
 [directory.substitutions]
 "Documents" = "󰈙 "
-"Downloads" = " "
-"Music" = " "
-"Pictures" = " "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+# Keep in mind that the order matters. For example:
+# "Important Documents" = " 󰈙 "
+# will not be replaced, because "Documents" was already substituted before.
+# So either put "Important Documents" before "Documents" or use the substituted version:
+# "Important 󰈙 " = " 󰈙 "
 
 [hostname]
 ssh_only = false
@@ -56,7 +68,8 @@ format = "$output"
 detect_folders = [".git", "!.jj"]
 
 [git_branch]
-symbol = ""
+#disabled = false
+symbol = ""
 style = "bg:#653070"
 format = '[ $symbol $branch ]($style)'
 
@@ -66,7 +79,9 @@ format = '[$all_status$ahead_behind ]($style)'
 
 [custom.jj]
 command = '''starship-jj --ignore-working-copy starship prompt'''
+#symbol = "🥋 "
 symbol = "🪄 "
+#symbol = "󱗆 "
 style = "bg:#653070"
 format = "[$symbol$output]($style)"
 detect_folders = [".jj"]
@@ -76,31 +91,36 @@ style = "bg:#853973 fg:#fbfaf2"
 format = '[ $symbol ($version) ]($style)'
 
 [java]
-symbol = " "
+symbol = " "
 style = "bg:#853973 fg:#fbfaf2"
 format = '[ $symbol ($version) ]($style)'
 
 [nodejs]
-symbol = ""
+symbol = ""
 style = "bg:#853973 fg:#fbfaf2"
 format = '[ $symbol ($version) ]($style)'
 
 [rust]
-symbol = ""
+symbol = ""
 style = "bg:#853973 fg:#fbfaf2"
 format = '[ $symbol ($version) ]($style)'
 
 [time]
 disabled = false
-time_format = "%R"
+time_format = "%R"              # Hour:Minute Format
 style = "bg:#b38067 fg:#5f458f"
 format = '[ ♥ $time ]($style)'
 
 [status]
+#pipestatus_format = '\[$pipestatus\] => [$symbol$common_meaning$signal_name$maybe_int](bg:#2e2130 fg:#f9e4cc)'
 disabled = false
 map_symbol = true
 pipestatus = false
-format = '[$symbol $status ]($style)[ ]($style)'
+#success_style = "bg:#2a3058 fg:#f9e4cc"
+#failure_style = "bg:#2a3058 fg:#f9b4aa"
+format = '[$symbol $status ]($style)[ ]($style)'
+#success_style = "bg:#2e2130 fg:#f9e4cc"
+#pipestatus_segment_format = "[$symbol$status](bg:#2e2130)"
 
 [line_break]
 disabled = false

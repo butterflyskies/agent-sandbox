@@ -70,6 +70,7 @@ if [[ -o interactive ]]; then
   bindkey '^E' end-of-line
 
   ##### fzf-tab (fuzzy completion UI)
+  zinit ice ver"0983009f8666f11e91a2ee1f88cfdb748d14f656"
   zinit light Aloxaf/fzf-tab
   zstyle ':completion:*' menu no
   zstyle ':completion:*' list-colors '=*=0'
