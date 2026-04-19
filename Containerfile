@@ -1,28 +1,18 @@
-# claude-sandbox — OCI image for running AI coding agents in microsandbox
+# agent-sandbox — OCI image for running AI coding agents in microsandbox
 #
 # Design:
 #   - Claude Code (native binary) is the default entrypoint
-#   - Also ships: opencode, codex, gemini CLI
+#   - Also ships: opencode, codex, gemini CLI, microsandbox
 #   - zsh available via `podman run --entrypoint zsh`
 #   - No credentials baked in — mount them at runtime
 #   - Single non-root user (agent), no SSH daemon
 #   - All tool downloads are pinned to specific versions with SHA256 verification
 #
-# Usage:
-#   podman build -t claude-sandbox -f Containerfile .
-#   podman run -it --rm \
-#     -v ~/dev:/home/agent/dev:Z \
-#     -v ~/.claude:/home/agent/.claude:Z \
-#     -v ~/.gitconfig.ai:/home/agent/.gitconfig:ro,Z \
-#     -v ~/.config/gh:/home/agent/.config/gh:ro,Z \
-#     -e ANTHROPIC_API_KEY \
-#     claude-sandbox
+# Build:
+#   just build
 #
-# Shell instead of claude:
-#   podman run -it --rm --entrypoint zsh claude-sandbox
-#
-# Different agent:
-#   podman run -it --rm --entrypoint codex claude-sandbox
+# Run:
+#   just claude
 
 # =============================================================================
 # Pinned versions — update these together when bumping (see VERSIONS.md)
@@ -58,6 +48,10 @@ ARG ZOXIDE_VERSION=0.9.9
 ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
 ARG OPENCODE_VERSION=1.4.3
 ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+ARG MSB_VERSION=0.3.12
+ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
+ARG AWSCLI_VERSION=2.34.29
+ARG AWSCLI_SHA256=8812e303cb4618ec495d39b94e4f338cf37d274007ca89faf587a0bc4792cd0e
 
 # =============================================================================
 # Stage 1: cargo binary builder
@@ -121,9 +115,11 @@ ARG UV_VERSION UV_SHA256
 ARG CHEZMOI_VERSION CHEZMOI_SHA256
 ARG ZOXIDE_VERSION ZOXIDE_SHA256
 ARG OPENCODE_VERSION OPENCODE_SHA256
+ARG MSB_VERSION MSB_SHA256
+ARG AWSCLI_VERSION AWSCLI_SHA256
 
 LABEL description="AI coding agent sandbox — polyglot dev environment with Claude Code" \
-      org.opencontainers.image.source="https://github.com/butterflyskies/claude-sandbox"
+      org.opencontainers.image.source="https://github.com/butterflyskies/agent-sandbox"
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
@@ -156,7 +152,7 @@ RUN apt-get update \
         protobuf-compiler \
         libssl-dev libffi-dev zlib1g-dev libreadline-dev libsqlite3-dev \
         libncurses-dev libbz2-dev liblzma-dev libxml2-dev libxmlsec1-dev \
-        tk-dev libgdbm-dev \
+        tk-dev libgdbm-dev libyaml-dev \
         # vcs
         git git-lfs git-crypt \
         # shell + editors
@@ -194,7 +190,24 @@ RUN apt-get update \
         -o /etc/apt/keyrings/smallstep.asc \
     && printf 'Types: deb\nURIs: https://packages.smallstep.com/stable/debian\nSuites: debs\nComponents: main\nSigned-By: /etc/apt/keyrings/smallstep.asc\n' \
         > /etc/apt/sources.list.d/smallstep.sources \
-    && apt-get update && apt-get install -y gh eza step-cli \
+    # --- third-party apt: Google Cloud CLI ---
+    && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+        > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    # --- third-party apt: Azure CLI ---
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ noble main" \
+        > /etc/apt/sources.list.d/azure-cli.list \
+    && apt-get update && apt-get install -y gh eza step-cli google-cloud-cli azure-cli \
+    # --- AWS CLI v2: pinned version, SHA256-verified ---
+    && curl -fsSL -o /tmp/awscliv2.zip \
+        "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
+    && echo "${AWSCLI_SHA256}  /tmp/awscliv2.zip" | sha256sum -c - \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip \
     # --- locale ---
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
     # --- default editor ---
@@ -252,7 +265,18 @@ RUN set -eux \
     && echo "${OPENCODE_SHA256}  /tmp/opencode.tar.gz" | sha256sum -c - \
     && tar xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode \
     && chmod +x /usr/local/bin/opencode \
-    && rm /tmp/opencode.tar.gz
+    && rm /tmp/opencode.tar.gz \
+    # --- microsandbox (binary + libkrunfw runtime lib) ---
+    && curl -fsSL -o /tmp/msb.tar.gz \
+        "https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz" \
+    && echo "${MSB_SHA256}  /tmp/msb.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/msb.tar.gz -C /tmp msb libkrunfw.so.5.2.1 \
+    && install -m 755 /tmp/msb /usr/local/bin/msb \
+    && install -m 755 /tmp/libkrunfw.so.5.2.1 /usr/local/lib/ \
+    && ln -sf libkrunfw.so.5.2.1 /usr/local/lib/libkrunfw.so.5 \
+    && ln -sf libkrunfw.so.5 /usr/local/lib/libkrunfw.so \
+    && ldconfig \
+    && rm /tmp/msb /tmp/libkrunfw.so.5.2.1 /tmp/msb.tar.gz
 
 # ---------------------------------------------------------------------------
 # Rust toolchain + cargo binaries from builder
@@ -273,18 +297,26 @@ RUN for bin in /opt/cargo/bin/*; do \
 # ---------------------------------------------------------------------------
 # Shell + prompt configuration
 # ---------------------------------------------------------------------------
-COPY config/zshrc /home/agent/.zshrc
-COPY config/interactive.zsh /home/agent/.zsh/interactive.zsh
-COPY config/starship.toml /home/agent/.config/starship.toml
-RUN chown -R agent:agent /home/agent/.zshrc /home/agent/.zsh /home/agent/.config/starship.toml
+COPY config/ /tmp/config/
+RUN cp /tmp/config/zshrc /home/agent/.zshrc \
+    && mkdir -p /home/agent/.zsh \
+    && cp /tmp/config/interactive.zsh /home/agent/.zsh/interactive.zsh \
+    && cp /tmp/config/starship.toml /home/agent/.config/starship.toml \
+    && cp /tmp/config/plugin-versions /home/agent/.plugin-versions \
+    && chown -R agent:agent /home/agent/.zshrc /home/agent/.zsh /home/agent/.config/starship.toml /home/agent/.plugin-versions \
+    && rm -rf /tmp/config
 
 # ---------------------------------------------------------------------------
 # AI coding agents + language runtimes (runs as agent user)
+# Claude Code installer is vendored in scripts/claude-install.sh — it
+# verifies the binary SHA256 from a manifest before execution. The script
+# itself is snapshotted at build time; Claude Code self-updates at runtime.
 # ---------------------------------------------------------------------------
-COPY scripts/install-tools.sh /tmp/install-tools.sh
-RUN chmod +x /tmp/install-tools.sh \
-    && su - agent -c /tmp/install-tools.sh \
-    && rm /tmp/install-tools.sh
+COPY scripts/ /tmp/scripts/
+RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
+    && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
+    && su - agent -c "bash /tmp/scripts/install-tools.sh" \
+    && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
 
 # ---------------------------------------------------------------------------
 # Final security pass

@@ -144,8 +144,8 @@ curl -fsSL https://api.github.com/repos/asdf-vm/asdf/releases/latest | jq -r '.t
    ```bash
    git ls-remote <plugin-url> HEAD | cut -f1
    ```
-5. Rebuild: `./build.sh`
-6. Smoke test: `podman run -it --rm --entrypoint zsh agent-sandbox`
+5. Rebuild: `just build`
+6. Smoke test: `just shell`
 7. Commit with a message listing what changed.
 
 ## Known gaps

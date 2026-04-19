@@ -1,0 +1,11 @@
+asdf-plugin-manager                       https://github.com/asdf-community/asdf-plugin-manager.git	db4a5e6d46ea5b0df8476249536ac89deaddc08c
+bun                                       https://github.com/cometkim/asdf-bun.git	804d9603c473ea616fa078f851fa8380246e2c7a
+golang                                    https://github.com/asdf-community/asdf-golang.git	a75b761963d8e6eda1a185c73476da8a75b8d300
+gradle                                    https://github.com/rfrancis/asdf-gradle.git	1a0b6a725bf70909fcf4978ddb3242485a961e8f
+java                                      https://github.com/halcyon/asdf-java.git	2e268ff2560e404e8283fc4a69c860e959bd0195
+maven                                     https://github.com/halcyon/asdf-maven.git	674e23a8e239147ccf835252a41459c72f497c94
+nodejs                                    https://github.com/asdf-vm/asdf-nodejs.git	779c8dc84b3bdab38c2c80622d315c2c3267f74b
+pnpm                                      https://github.com/jonathanmorley/asdf-pnpm.git	2ebf0e015f20902bb97a0026b33f6dc80ec449c3
+python                                    https://github.com/danhper/asdf-python.git	abc2a03863e4d569b4f9de0d0efc1a88d96c2c12
+ruby                                      https://github.com/asdf-vm/asdf-ruby.git	384566bd808f0ce0e6fbd8e25861a211d0c8766b
+zig                                       https://github.com/cheetah/asdf-zig.git	61d19e7ca2d4bb7412271634936422690f59468b
