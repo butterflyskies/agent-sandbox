@@ -42,9 +42,9 @@ init-home target="./home":
     mkdir -p "$TARGET"
     echo "Extracting /home/agent from {{image}}:{{tag}} into $TARGET ..."
     if [[ "{{runtime}}" == "msb" ]]; then
-        msb run --volume "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -- -c 'cp -a /home/agent/. /mnt/'
+        msb run --volume "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /home/agent/. /mnt/'
     else
-        {{runtime}} run --rm -v "$TARGET:/mnt" {{image}}:{{tag}} sh -c 'cp -a /home/agent/. /mnt/'
+        {{runtime}} run --rm -v "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /home/agent/. /mnt/'
     fi
     echo ""
     echo "Done. Full home directory extracted to $TARGET"
