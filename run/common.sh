@@ -2,11 +2,13 @@
 # Provides: ROOT_DIR, IMAGE, HOME_VOL, RUNTIME, RUNTIME_ARGS array
 #
 # Environment overrides:
-#   CONTAINER_RUNTIME  podman (default), docker, or msb
-#   IMAGE              image name (default: agent-sandbox)
-#   HOME_VOL           persistent home directory path (optional; ephemeral if unset/missing)
-#   MSB_CPUS           override CPU count for msb (default: nproc/2, min 2)
-#   MSB_MEMORY         override memory for msb (default: MemTotal/2, min 2G)
+#   CONTAINER_RUNTIME    podman (default), docker, or msb
+#   IMAGE                image name (default: agent-sandbox)
+#   HOME_VOL             persistent home directory path (optional; ephemeral if unset/missing)
+#   MSB_CPUS             override CPU count for msb (default: nproc/2, min 2)
+#   MSB_MEMORY           override memory for msb (default: MemTotal/2, min 2G)
+#   MSB_NAME             sandbox name for msb (default: agent-sandbox); enables persistence/exec
+#   MSB_NETWORK_POLICY   network policy for msb: public-only (default), allow-all, or none
 
 [[ -n "${BASH_SOURCE[0]:-}" ]] || { echo "common.sh must be sourced from bash" >&2; exit 1; }
 
@@ -57,16 +59,25 @@ if [[ "$RUNTIME" == "msb" ]]; then
         memory="${MSB_MEMORY:-$(( $(awk '/MemTotal/{print int($2/1024/1024/2)}' /proc/meminfo) ))G}"
     fi
 
+    # Network policy: default public-only; MSB_NETWORK_POLICY overrides.
+    _msb_net_args=()
+    case "${MSB_NETWORK_POLICY:-public-only}" in
+        allow-all)   _msb_net_args=(--network-policy allow-all --no-dns-rebind-protection) ;;
+        none)        _msb_net_args=(--no-network) ;;
+        *)           _msb_net_args=(--network-policy public-only) ;;
+    esac
+
     RUNTIME_ARGS=(
         -t
         --shell /bin/zsh
         -c "$cpus"
         -m "$memory"
-        --network-policy public-only
+        "${_msb_net_args[@]}"
         --on-secret-violation block-and-log
         --tmpfs /tmp
         --tmpfs /var/tmp
         --tmpfs /run
+        --name "${MSB_NAME:-agent-sandbox}"
         "${API_KEY_ARGS[@]}"
     )
     # Only mount HOME_VOL if it exists or was explicitly set.

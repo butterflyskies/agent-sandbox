@@ -1,5 +1,9 @@
 # agent-sandbox — AI coding agent sandbox
 # Usage: just <recipe> [args...]
+#
+# Named targets (msb-*, docker-*) are sugar — all env var escape hatches still work:
+#   CONTAINER_RUNTIME, IMAGE, IMAGE_TAG, REGISTRY, HOME_VOL,
+#   MSB_CPUS, MSB_MEMORY, MSB_NAME, MSB_NETWORK_POLICY
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -55,7 +59,7 @@ init-home target="./home":
     echo "  Copy SSH keys to $TARGET/.ssh/ — (optional)"
     echo "  Then run: just claude"
 
-# Run Claude Code in the sandbox
+# Run Claude Code in the sandbox (uses $CONTAINER_RUNTIME, default: podman)
 claude *args:
     #!/bin/bash
     set -euo pipefail
@@ -63,7 +67,7 @@ claude *args:
     source run/common.sh
     sandbox_exec claude {{args}}
 
-# Run OpenAI Codex in the sandbox
+# Run OpenAI Codex in the sandbox (uses $CONTAINER_RUNTIME, default: podman)
 codex *args:
     #!/bin/bash
     set -euo pipefail
@@ -71,10 +75,110 @@ codex *args:
     source run/common.sh
     sandbox_exec codex {{args}}
 
-# Drop into an interactive zsh shell
+# Drop into an interactive zsh shell (uses $CONTAINER_RUNTIME, default: podman)
 shell:
     #!/bin/bash
     set -euo pipefail
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec zsh
+
+# Run Claude Code via microsandbox (public-only network)
+msb-claude *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec claude {{args}}
+
+# Run Claude Code via microsandbox — allow-all network + no DNS-rebind protection
+msb-claude-open *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export MSB_NETWORK_POLICY=allow-all
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec claude {{args}}
+
+# Run Claude Code via microsandbox — no network access
+msb-claude-offline *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export MSB_NETWORK_POLICY=none
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec claude {{args}}
+
+# Run OpenAI Codex via microsandbox
+msb-codex *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec codex {{args}}
+
+# Drop into an interactive zsh shell via microsandbox
+msb-shell:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec zsh
+
+# Drop into an interactive zsh shell via microsandbox — allow-all network
+msb-shell-open:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export MSB_NETWORK_POLICY=allow-all
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec zsh
+
+# Show microsandbox sandbox status
+msb-status:
+    msb list
+
+# Stop the named microsandbox sandbox
+msb-stop:
+    msb stop "${MSB_NAME:-agent-sandbox}"
+
+# Destroy the named microsandbox sandbox (irreversible — use to reset state)
+msb-reset:
+    msb rm "${MSB_NAME:-agent-sandbox}"
+
+# Exec a command in the running microsandbox sandbox
+msb-exec *args:
+    msb exec "${MSB_NAME:-agent-sandbox}" {{args}}
+
+# Run Claude Code via docker
+docker-claude *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=docker
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec claude {{args}}
+
+# Run OpenAI Codex via docker
+docker-codex *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=docker
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec codex {{args}}
+
+# Drop into an interactive zsh shell via docker
+docker-shell:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=docker
     export ROOT_DIR="{{justfile_directory()}}"
     source run/common.sh
     sandbox_exec zsh
