@@ -16,17 +16,57 @@ registry := env("REGISTRY", "ghcr.io/butterflyskies")
 default:
     @just --list
 
-# Build the OCI image
+# Build the OCI image (local dev — tags as :latest or $IMAGE_TAG)
 build:
-    {{runtime}} build --tag {{image}}:{{tag}} --file Containerfile --layers .
+    #!/bin/bash
+    set -euo pipefail
+    BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    GIT_SHA=$(git rev-parse HEAD)
+    if [[ -n "$(git status --porcelain)" ]]; then
+        GIT_SHA="${GIT_SHA}-dirty"
+    fi
+    IMAGE_VERSION="{{tag}}"
+    {{runtime}} build \
+        --tag {{image}}:{{tag}} \
+        --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
+        --build-arg BUILD_DATE="${BUILD_DATE}" \
+        --build-arg GIT_SHA="${GIT_SHA}" \
+        --file Containerfile \
+        --layers .
 
 # Tag and push to registry
 push:
     {{runtime}} tag {{image}}:{{tag}} {{registry}}/{{image}}:{{tag}}
     {{runtime}} push {{registry}}/{{image}}:{{tag}}
 
-# Build and push
-release: build push
+# Build with CalVer labels, tag :latest and :YYYYMMDD, push both to registry
+release:
+    #!/bin/bash
+    set -euo pipefail
+    DATE_TAG=$(date -u +%Y%m%d)
+    BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    GIT_SHA=$(git rev-parse HEAD)
+    if [[ -n "$(git status --porcelain)" ]]; then
+        GIT_SHA="${GIT_SHA}-dirty"
+    fi
+    IMAGE_VERSION="${DATE_TAG}"
+    echo "Building {{image}} — version=${IMAGE_VERSION} sha=${GIT_SHA}"
+    {{runtime}} build \
+        --tag {{image}}:${DATE_TAG} \
+        --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
+        --build-arg BUILD_DATE="${BUILD_DATE}" \
+        --build-arg GIT_SHA="${GIT_SHA}" \
+        --file Containerfile \
+        --layers .
+    {{runtime}} tag {{image}}:${DATE_TAG} {{image}}:latest
+    {{runtime}} tag {{image}}:${DATE_TAG} {{registry}}/{{image}}:${DATE_TAG}
+    {{runtime}} tag {{image}}:${DATE_TAG} {{registry}}/{{image}}:latest
+    {{runtime}} push {{registry}}/{{image}}:${DATE_TAG}
+    {{runtime}} push {{registry}}/{{image}}:latest
+    echo ""
+    echo "Pushed:"
+    echo "  {{registry}}/{{image}}:${DATE_TAG}"
+    echo "  {{registry}}/{{image}}:latest"
 
 # Initialize a persistent home directory (skeleton only — see init-home for full copy)
 init:
