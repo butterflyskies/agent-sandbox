@@ -86,9 +86,7 @@ else
         "${API_KEY_ARGS[@]}"
     )
     if [[ -d "$HOME_VOL" ]]; then
-        RUNTIME_ARGS+=(-v "${HOME_VOL}:/home/agent:z")
-    else
-        RUNTIME_ARGS+=(--rm)
+        RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent:z")
     fi
 fi
 
