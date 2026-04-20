@@ -1,153 +1,172 @@
 # agent-sandbox
 
-OCI container image for running AI coding agents — primarily [Claude Code](https://docs.anthropic.com/en/docs/claude-code), but also ships OpenAI Codex, Google Gemini CLI, OpenCode, and [microsandbox](https://github.com/microsandbox/microsandbox).
-
-Designed for use with microsandbox, Podman, or Docker, with volume mounts for source repos and credentials injected at runtime.
+OCI image for running AI coding agents — Claude Code, Codex, Gemini CLI, and OpenCode — inside a hardened, reproducible environment with three runtime options: [microsandbox](https://github.com/microsandbox/microsandbox) microVMs, rootless Podman, or Docker.
 
 ## Quick start
 
+No `init` needed. Persistence is automatic out of the box.
+
+**microsandbox (recommended — microVM isolation, secret scoping, network policy):**
 ```bash
-# Build the image
-just build
-
-# Initialize a persistent home directory
-just init
-
-# Populate your identity (edit these before first run)
-vi home/.gitconfig
-cp ~/.config/gh/hosts.yml home/.config/gh/
-
-# Run Claude Code
-just claude
+just build && just msb-claude
 ```
 
-## Building
-
+**Podman (default — rootless, hardened):**
 ```bash
-# Local build (uses Podman layer cache automatically)
-just build
+just build && just claude
+```
 
-# With Docker instead
-CONTAINER_RUNTIME=docker just build
-
-# Build and push to registry
-REGISTRY=ghcr.io/yourorg just release
+**Docker:**
+```bash
+just build && just docker-claude
 ```
 
 ## Running
 
-### With just (recommended)
+### microsandbox
 
-All `just` recipes mount `./home/` as a persistent volume, apply runtime-appropriate hardening, and auto-detect and forward any set API keys. Supports Podman (default), Docker, and microsandbox.
+microsandbox provides hardware-level VM isolation with millisecond boot times. API keys are scoped to their provider endpoints. Network is `public-only` by default (blocks private/loopback ranges).
+
+| Target | Network | Use case |
+|--------|---------|----------|
+| `just msb-claude` | public-only | Default — safe for most work |
+| `just msb-claude-open` | allow-all | Agents that need local services |
+| `just msb-claude-offline` | none | Air-gapped code review |
+| `just msb-codex` | public-only | OpenAI Codex |
+| `just msb-shell` | public-only | Interactive shell |
+| `just msb-shell-open` | allow-all | Shell with local network access |
+
+Lifecycle:
+```bash
+just msb-status          # List running sandboxes
+just msb-stop            # Stop the named sandbox
+just msb-reset           # Destroy it (irreversible)
+just msb-exec -- <cmd>   # Run a command in the running sandbox
+```
+
+See [docs/network-policy.md](docs/network-policy.md) for details on network policies.
+
+### Podman
 
 ```bash
-just claude                  # Claude Code (default)
-just claude --help           # Pass args to claude
-just codex                   # OpenAI Codex
-just shell                   # Interactive zsh shell
+just claude              # Claude Code
+just codex               # OpenAI Codex
+just shell               # Interactive zsh
 ```
 
-Override the container runtime, home volume, or image:
+Runs with `--cap-drop=ALL --read-only --security-opt=no-new-privileges` automatically.
+
+### Docker
 
 ```bash
-CONTAINER_RUNTIME=docker just claude                # Use Docker instead of Podman
-CONTAINER_RUNTIME=msb just claude                   # Use microsandbox microVM
-HOME_VOL=/path/to/my/home just claude               # Custom home volume
-IMAGE=ghcr.io/org/agent-sandbox:latest just claude   # Custom image
+just docker-claude       # Claude Code
+just docker-codex        # OpenAI Codex
+just docker-shell        # Interactive zsh
 ```
 
-### With Podman
+Same hardening as Podman, minus SELinux labels.
+
+### Env var overrides
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CONTAINER_RUNTIME` | `podman` | Runtime: `podman`, `docker`, or `msb` |
+| `IMAGE` | `agent-sandbox` | Image name |
+| `IMAGE_TAG` | `latest` | Image tag |
+| `REGISTRY` | `ghcr.io/butterflyskies` | Registry for push/pull |
+| `HOME_VOL` | `./home` | External home directory (optional) |
+| `MSB_CPUS` | host/2 | CPU count for msb |
+| `MSB_MEMORY` | host/2 | Memory for msb |
+| `MSB_NAME` | `agent-sandbox` | Named sandbox for msb |
+| `MSB_NETWORK_POLICY` | `public-only` | msb network: `public-only`, `allow-all`, `none` |
+
+Example:
+```bash
+MSB_NAME=my-project just msb-claude
+HOME_VOL=/data/agent-home just claude
+IMAGE_TAG=20250418 just docker-claude
+```
+
+## Persistence
+
+Three modes — choose based on your workflow. See [docs/persistence.md](docs/persistence.md) for details.
+
+### 1. Built-in (default — no setup required)
+
+**microsandbox:** The named sandbox (`--name agent-sandbox`) keeps `/home/agent` alive across `msb exec` calls. No volume needed. Files persist until `just msb-reset`.
+
+**Podman/Docker without `HOME_VOL`:** Container is not run with `--rm`, so it persists after exit. Re-attach with `podman start -ai <id>` or just run again.
+
+### 2. External volume — full image home (`just init-home`)
+
+Extracts the complete `/home/agent` from the image into a local directory. All tools, configs, and shell setup included.
 
 ```bash
-podman run -it --rm \
-  -v ~/dev:/home/agent/dev:Z \
-  -v ~/.claude:/home/agent/.claude:Z \
-  -v ~/.gitconfig:/home/agent/.gitconfig:ro,Z \
-  -v ~/.config/gh:/home/agent/.config/gh:ro,Z \
-  -e ANTHROPIC_API_KEY \
-  agent-sandbox
+just init-home           # Extracts to ./home (errors if non-empty)
+just init-home /data/my-home   # Custom path
 ```
 
-Shell instead of Claude:
+Then edit identity files:
+```bash
+vi home/.gitconfig
+cp ~/.config/gh/hosts.yml home/.config/gh/
+```
+
+Run with the volume:
+```bash
+HOME_VOL=./home just claude
+```
+
+### 3. Skeleton volume (`just init`)
+
+Creates a minimal directory structure — no tool copies from the image, just the folders. Lighter weight; bring your own dotfiles.
 
 ```bash
-podman run -it --rm --entrypoint zsh agent-sandbox
+just init                # Creates ./home with the skeleton layout
 ```
 
-Different agent:
+When to use each:
 
-```bash
-podman run -it --rm --entrypoint codex -e OPENAI_API_KEY agent-sandbox
-podman run -it --rm --entrypoint gemini -e GEMINI_API_KEY agent-sandbox
-podman run -it --rm --entrypoint opencode agent-sandbox
-```
+| Mode | Persistence | Setup | Best for |
+|------|-------------|-------|---------|
+| Built-in (msb) | Until `msb-reset` | None | Daily use with microsandbox |
+| Built-in (container) | Until container removed | None | Quick one-off sessions |
+| `init-home` | Volume-backed | One `init-home` | Portable home, custom dotfiles layer |
+| `init` (skeleton) | Volume-backed | Manual setup | Minimal, BYO everything |
 
-### With Docker
+## Security
 
-```bash
-docker run -it --rm \
-  -v ~/dev:/home/agent/dev \
-  -v ~/.claude:/home/agent/.claude \
-  -v ~/.gitconfig:/home/agent/.gitconfig:ro \
-  -v ~/.config/gh:/home/agent/.config/gh:ro \
-  -e ANTHROPIC_API_KEY \
-  agent-sandbox
-```
+### microsandbox
 
-Note: Docker doesn't need the `:Z` SELinux relabel suffix that Podman requires on Fedora/RHEL. If you're on macOS with OrbStack or Docker Desktop, volume mounts work as-is.
+**Secret scoping** — API keys are bound to their provider's domain. A key leaking from one agent cannot be used against another provider:
 
-Shell:
+| Key | Allowed host |
+|-----|-------------|
+| `ANTHROPIC_API_KEY` | `api.anthropic.com` |
+| `OPENAI_API_KEY` | `api.openai.com` |
+| `GEMINI_API_KEY` | `generativelanguage.googleapis.com` |
+| `GOOGLE_API_KEY` | `*.googleapis.com` |
 
-```bash
-docker run -it --rm --entrypoint zsh agent-sandbox
-```
+Violations are blocked and logged (`--on-secret-violation block-and-log`).
 
-### With Docker Compose
+**Network policies** — default `public-only` blocks private ranges (RFC 1918), loopback, and link-local. Use `msb-claude-open` for local service access or `msb-claude-offline` for no network. See [docs/network-policy.md](docs/network-policy.md).
 
-```yaml
-# compose.yml
-services:
-  claude:
-    image: agent-sandbox
-    stdin_open: true
-    tty: true
-    environment:
-      - ANTHROPIC_API_KEY
-    volumes:
-      - ./home:/home/agent
-```
+**Resource auto-scaling** — msb allocates host/2 CPUs and host/2 memory automatically. Override with `MSB_CPUS` / `MSB_MEMORY`.
 
-```bash
-docker compose run --rm claude
-```
+### Podman / Docker hardening
 
-### With microsandbox
+All `just` recipes apply these flags automatically:
 
-[Microsandbox](https://github.com/microsandbox/microsandbox) provides hardware-level VM isolation with millisecond boot times. The `msb` CLI is included in the image, and it can also be used from the host to run the image itself.
+| Flag | Effect |
+|------|--------|
+| `--cap-drop=ALL` | Drop all Linux capabilities |
+| `--security-opt=no-new-privileges` | Prevent setuid/setgid escalation |
+| `--read-only` | Immutable root filesystem |
+| `--tmpfs /tmp,/var/tmp,/run` | Writable scratch space only |
 
-From the host (requires msb installed and KVM enabled):
+Rootless Podman maps the container's root to your unprivileged host UID — there is no real root.
 
-```bash
-# One-off run
-msb run agent-sandbox -- claude
-
-# Named persistent sandbox
-msb create --name my-agent agent-sandbox
-msb exec my-agent -- claude
-msb exec my-agent -- zsh
-msb stop my-agent
-
-# Install as a system command
-msb install --name claude agent-sandbox
-claude  # launches a microVM every time
-```
-
-From inside the container, agents can create their own nested sandboxes using the msb CLI or the [microsandbox MCP server](https://github.com/superradcompany/microsandbox-mcp):
-
-```bash
-# Add the MCP server to Claude Code
-claude mcp add --transport stdio microsandbox -- npx -y microsandbox-mcp
-```
+See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bind mounts.
 
 ## What's in the box
 
@@ -163,42 +182,22 @@ claude mcp add --transport stdio microsandbox -- npx -y microsandbox-mcp
 | **Editors** | neovim (default), nano |
 | **CLI** | ripgrep, fd, bat, eza, fzf, jq, just, hyperfine, tokei, bottom, dust, chezmoi, step-cli |
 
-## Persistent home directory
-
-The `skeleton/init.sh` script creates a directory structure for mounting as `/home/agent`:
-
-```
-home/
-├── .gitconfig          # Git identity (edit before first run)
-├── .config/gh/         # GitHub CLI auth (copy hosts.yml here)
-├── .claude/            # Claude Code config, memory, sessions
-├── .ssh/               # SSH keys (optional, for git+ssh)
-├── .local/bin/         # User-installed binaries
-├── .cargo/bin/         # User-installed cargo binaries
-├── .asdf/              # Language runtime versions
-├── .npm-global/        # npm global packages
-├── .cache/             # Build/tool caches
-├── dev/                # Source repositories
-└── projects/           # Additional project directories
-```
-
-The container works fine without a persistent home — everything is self-contained in the image. A persistent volume just means your shell history, tool configs, cloned repos, and installed runtimes survive across runs.
-
-## Build caching
-
-Local rebuilds benefit from cargo cache mounts automatically (`--mount=type=cache` in the Containerfile) and Podman's layer cache (`--layers`).
-
-For CI or cross-machine cache sharing, push to a registry:
+## Building & versioning
 
 ```bash
-REGISTRY=ghcr.io/yourorg just release
+just build                          # Local build, tags :latest (or $IMAGE_TAG)
+just release                        # CalVer build: tags :latest + :YYYYMMDD, pushes both
+just push                           # Push current tag to $REGISTRY
+REGISTRY=ghcr.io/myorg just release # Push to a custom registry
 ```
 
-Set `REGISTRY` to your own OCI registry. Requires `write:packages` scope (or equivalent) for push.
+OCI labels stamped at build: `org.opencontainers.image.version`, `org.opencontainers.image.revision`, `org.opencontainers.image.created`.
+
+Local rebuilds benefit from cargo cache mounts (`--mount=type=cache`) and Podman layer cache (`--layers`) automatically.
 
 ## Supply chain security
 
-All tool installations use **pinned versions with SHA256 checksum verification** where possible. Version pins and checksums are declared as `ARG` values at the top of the Containerfile for easy auditing and updates.
+All tool installations use **pinned versions with SHA256 checksum verification** where possible.
 
 | Tool | Install method | Pinned | Integrity check |
 |------|---------------|--------|-----------------|
@@ -220,55 +219,15 @@ All tool installations use **pinned versions with SHA256 checksum verification**
 ### Remaining risks
 
 - **npm packages (Codex, Gemini) float to latest.** npm registry signatures provide some protection, but versions are not locked.
-
 - **AWS CLI v2 is not checksum-verified.** Amazon distributes it as a zip with no published checksums. TLS is the only protection.
-
-- **Third-party apt repo signing keys are fetched at build time.** The gh, eza, step-cli, gcloud, and Azure CLI apt repos are GPG-signed, but the signing keys themselves are downloaded over TLS without pinning.
-
-- **`apt-get upgrade` introduces drift.** The final security-patch layer means image content depends on build date.
-
-- **The image is large.** Multi-stage build keeps Rust compilation artifacts out, but expect 3-5 GB with the full build toolchain, cloud CLIs, and multiple runtimes.
-
-- **No seccomp/AppArmor profiles are provided.** The image runs as a non-root user (`agent`, uid 1000) with passwordless sudo. Restrict capabilities at the container runtime level.
-
-## Runtime hardening
-
-The image ships with `sudo` available — useful for ad-hoc package installs during development. In rootless Podman, `root` inside the container maps to your unprivileged UID on the host, so it's not real root. Microsandbox provides similar isolation via hardware-level VM boundaries.
-
-For tighter lockdown, apply these at runtime:
-
-```bash
-podman run -it --rm \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges \
-  --read-only --tmpfs /tmp \
-  -v ./home:/home/agent:Z \
-  -e ANTHROPIC_API_KEY \
-  agent-sandbox
-```
-
-```bash
-docker run -it --rm \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges \
-  --read-only --tmpfs /tmp \
-  -v ./home:/home/agent \
-  -e ANTHROPIC_API_KEY \
-  agent-sandbox
-```
-
-| Flag | Effect |
-|------|--------|
-| `--cap-drop=ALL` | Drop all Linux capabilities (coding agents don't need any) |
-| `--security-opt=no-new-privileges` | Prevent setuid/setgid escalation |
-| `--read-only --tmpfs /tmp` | Immutable root filesystem, writable /tmp only |
-| `-v ... :ro` | Mount config volumes read-only where possible |
-
-With `--read-only`, the agent can only write to explicitly mounted volumes and `/tmp`. This limits blast radius if the agent or any tool is compromised — it can't modify its own toolchain, install backdoors, or tamper with binaries.
+- **Third-party apt signing keys are fetched at build time** over TLS without pinning.
+- **`apt-get upgrade` introduces drift.** Image content depends on build date.
+- **The image is large.** Expect 3–5 GB with the full build toolchain, cloud CLIs, and multiple runtimes.
+- **No seccomp/AppArmor profiles are provided.** The image runs as `agent` (uid 1000) with passwordless sudo. Restrict capabilities at the container runtime level (the justfile does this automatically).
 
 ## Updating versions
 
-All pinned versions are at the top of the Containerfile as `ARG` declarations, and runtime versions are at the top of `scripts/install-tools.sh`. See [VERSIONS.md](VERSIONS.md) for the full validation methodology and update procedure.
+All pinned versions live in `Containerfile` ARG declarations and `scripts/install-tools.sh`. See [VERSIONS.md](VERSIONS.md) for the full validation methodology and update procedure.
 
 ## License
 
