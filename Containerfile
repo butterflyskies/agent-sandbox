@@ -315,6 +315,7 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
     && cp /tmp/config/interactive.zsh /home/agent/.zsh/interactive.zsh \
     && cp /tmp/config/starship.toml /home/agent/.config/starship.toml \
     && cp /tmp/config/plugin-versions /home/agent/.plugin-versions \
+    && cp /tmp/config/agent-sandbox-paths.sh /etc/profile.d/agent-sandbox-paths.sh \
     && chown -R agent:agent /home/agent/.zshrc /home/agent/.zsh /home/agent/.config/starship.toml /home/agent/.plugin-versions \
     && rm -rf /tmp/config
 

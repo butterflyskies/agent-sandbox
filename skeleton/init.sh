@@ -1,7 +1,17 @@
 #!/bin/bash
 # Initialize a persistent home directory for the agent-sandbox agent.
 #
-# This creates the directory structure that gets mounted as /home/agent.
+# NOTE: For a fully populated home with all build-time tools and configs,
+# prefer the image-extraction method:
+#
+#   just init-home [target-dir]
+#
+# That command copies /home/agent directly out of the image (including asdf,
+# cargo binaries, zsh config, etc.) into a local directory. Use this script
+# instead when you want a lightweight skeleton without pulling the full image,
+# or when you plan to supply your own tooling.
+#
+# This creates a minimal directory structure that gets mounted as /home/agent.
 # Populate the files described below before running the container.
 #
 # Usage: ./skeleton/init.sh [target-dir]
@@ -102,6 +112,10 @@ echo "  $TARGET/.gitconfig          — git identity"
 echo "  $TARGET/.config/gh/         — gh auth (hosts.yml)"
 echo "  $TARGET/.ssh/               — SSH keys (optional)"
 echo "  $TARGET/dev/                — source repos to work on"
+echo ""
+echo "Note: this skeleton does not include build-time tools (asdf, cargo"
+echo "binaries, zsh config, etc.). For a fully populated home directory, run:"
+echo "  just init-home $TARGET"
 echo ""
 echo "Then run:"
 echo "  just claude"
