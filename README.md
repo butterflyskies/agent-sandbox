@@ -1,6 +1,6 @@
 # agent-sandbox
 
-OCI image for running AI coding agents — Claude Code, Codex, Gemini CLI, and OpenCode — inside a hardened, reproducible environment with three runtime options: [microsandbox](https://github.com/microsandbox/microsandbox) microVMs, rootless Podman, or Docker.
+OCI image for running AI coding agents — Claude Code, Codex, Gemini CLI, OpenCode, and [pi-agent-rust](https://github.com/Dicklesworthstone/pi_agent_rust) — inside a hardened, reproducible environment with three runtime options: [microsandbox](https://github.com/microsandbox/microsandbox) microVMs, rootless Podman, or Docker.
 
 ## Quick start
 
@@ -33,6 +33,9 @@ microsandbox provides hardware-level VM isolation with millisecond boot times. A
 | `just msb-claude-open` | allow-all | Agents that need local services |
 | `just msb-claude-offline` | none | Air-gapped code review |
 | `just msb-codex` | public-only | OpenAI Codex |
+| `just msb-pi` | public-only | pi-agent-rust |
+| `just msb-pi-open` | allow-all | pi-agent-rust with local services |
+| `just msb-pi-offline` | none | pi-agent-rust air-gapped |
 | `just msb-shell` | public-only | Interactive shell |
 | `just msb-shell-open` | allow-all | Shell with local network access |
 
@@ -51,6 +54,7 @@ See [docs/network-policy.md](docs/network-policy.md) for details on network poli
 ```bash
 just claude              # Claude Code
 just codex               # OpenAI Codex
+just pi                  # pi-agent-rust
 just shell               # Interactive zsh
 ```
 
@@ -61,6 +65,7 @@ Runs with `--cap-drop=ALL --read-only --security-opt=no-new-privileges` automati
 ```bash
 just docker-claude       # Claude Code
 just docker-codex        # OpenAI Codex
+just docker-pi           # pi-agent-rust
 just docker-shell        # Interactive zsh
 ```
 
@@ -172,7 +177,7 @@ See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bin
 
 | Category | Contents |
 |----------|----------|
-| **AI agents** | Claude Code (native), Codex, Gemini CLI, OpenCode |
+| **AI agents** | Claude Code (native), Codex, Gemini CLI, OpenCode, pi-agent-rust |
 | **Sandbox** | microsandbox (`msb`) CLI + runtime |
 | **Runtimes** | Node.js 24 LTS, Python 3.12, Go, Java (GraalVM 21), Ruby, Zig, Bun (via asdf) |
 | **Build tools** | Rust (stable) + cargo tools, Gradle, Maven, pnpm, uv, cmake, ninja, meson |
@@ -207,6 +212,7 @@ All tool installations use **pinned versions with SHA256 checksum verification**
 | chezmoi | GitHub release binary | Version + SHA256 | sha256sum verify |
 | zoxide | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | opencode | GitHub release tarball | Version + SHA256 | sha256sum verify |
+| pi-agent-rust | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | microsandbox | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | Claude Code | Vendored installer script | Script snapshotted at build | Installer verifies binary SHA256 from manifest |
 | Codex, Gemini | npm install -g | Floating (latest) | npm registry signatures |

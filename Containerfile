@@ -2,7 +2,7 @@
 #
 # Design:
 #   - Claude Code (native binary) is the default entrypoint
-#   - Also ships: opencode, codex, gemini CLI, microsandbox
+#   - Also ships: opencode, codex, gemini CLI, pi-agent-rust, microsandbox
 #   - zsh available via `podman run --entrypoint zsh`
 #   - No credentials baked in — mount them at runtime
 #   - Single non-root user (agent), no SSH daemon
@@ -48,6 +48,8 @@ ARG ZOXIDE_VERSION=0.9.9
 ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
 ARG OPENCODE_VERSION=1.4.3
 ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+ARG PI_AGENT_VERSION=0.1.15
+ARG PI_AGENT_SHA256=4f17de89948bacc3c325437992b668157311e5ec99b38bd6be87a740b5ea8d2c
 ARG MSB_VERSION=0.3.12
 ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
 ARG AWSCLI_VERSION=2.34.29
@@ -115,6 +117,7 @@ ARG UV_VERSION UV_SHA256
 ARG CHEZMOI_VERSION CHEZMOI_SHA256
 ARG ZOXIDE_VERSION ZOXIDE_SHA256
 ARG OPENCODE_VERSION OPENCODE_SHA256
+ARG PI_AGENT_VERSION PI_AGENT_SHA256
 ARG MSB_VERSION MSB_SHA256
 ARG AWSCLI_VERSION AWSCLI_SHA256
 
@@ -278,6 +281,13 @@ RUN set -eux \
     && tar xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode \
     && chmod +x /usr/local/bin/opencode \
     && rm /tmp/opencode.tar.gz \
+    # --- pi-agent-rust (AI coding agent CLI — binary name: pi) ---
+    && curl -fsSL -o /tmp/pi.tar.gz \
+        "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${PI_AGENT_VERSION}/pi-${PI_AGENT_VERSION}-linux_amd64.tar.gz" \
+    && echo "${PI_AGENT_SHA256}  /tmp/pi.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/pi.tar.gz -C /usr/local/bin pi \
+    && chmod +x /usr/local/bin/pi \
+    && rm /tmp/pi.tar.gz \
     # --- microsandbox (binary + libkrunfw runtime lib) ---
     && curl -fsSL -o /tmp/msb.tar.gz \
         "https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz" \

@@ -115,6 +115,14 @@ codex *args:
     source run/common.sh
     sandbox_exec codex {{args}}
 
+# Run pi-agent-rust in the sandbox (uses $CONTAINER_RUNTIME, default: podman)
+pi *args:
+    #!/bin/bash
+    set -euo pipefail
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec pi {{args}}
+
 # Drop into an interactive zsh shell (uses $CONTAINER_RUNTIME, default: podman)
 shell:
     #!/bin/bash
@@ -160,6 +168,35 @@ msb-codex *args:
     export ROOT_DIR="{{justfile_directory()}}"
     source run/common.sh
     sandbox_exec codex {{args}}
+
+# Run pi-agent-rust via microsandbox
+msb-pi *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec pi {{args}}
+
+# Run pi-agent-rust via microsandbox — allow-all network + no DNS-rebind protection
+msb-pi-open *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export MSB_NETWORK_POLICY=allow-all
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec pi {{args}}
+
+# Run pi-agent-rust via microsandbox — no network access
+msb-pi-offline *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=msb
+    export MSB_NETWORK_POLICY=none
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec pi {{args}}
 
 # Drop into an interactive zsh shell via microsandbox
 msb-shell:
@@ -213,6 +250,15 @@ docker-codex *args:
     export ROOT_DIR="{{justfile_directory()}}"
     source run/common.sh
     sandbox_exec codex {{args}}
+
+# Run pi-agent-rust via docker
+docker-pi *args:
+    #!/bin/bash
+    set -euo pipefail
+    export CONTAINER_RUNTIME=docker
+    export ROOT_DIR="{{justfile_directory()}}"
+    source run/common.sh
+    sandbox_exec pi {{args}}
 
 # Drop into an interactive zsh shell via docker
 docker-shell:
