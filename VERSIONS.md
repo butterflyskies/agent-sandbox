@@ -118,6 +118,10 @@ curl -fsSL "https://github.com/ajeetdsouza/zoxide/releases/download/v${VER}/zoxi
 VER=X.Y.Z
 curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${VER}/opencode-linux-x64.tar.gz" | sha256sum
 
+# pi-agent-rust
+VER=X.Y.Z
+curl -fsSL "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${VER}/pi-${VER}-linux_amd64.tar.gz" | sha256sum
+
 # microsandbox
 VER=X.Y.Z
 curl -fsSL "https://github.com/superradcompany/microsandbox/releases/download/v${VER}/microsandbox-linux-x86_64.tar.gz" | sha256sum
