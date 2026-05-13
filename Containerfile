@@ -19,48 +19,73 @@
 # =============================================================================
 
 # Builder-stage: Rust toolchain
+# renovate: datasource=github-releases depName=rust-lang/rustup extractVersion=^(?<version>\d+\.\d+\.\d+)$
+ARG RUSTUP_VERSION=1.29.0
 ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
 
 # Builder-stage: cargo crate versions
+# renovate: datasource=crate depName=just
 ARG JUST_VERSION=1.49.0
+# renovate: datasource=crate depName=hyperfine
 ARG HYPERFINE_VERSION=1.20.0
+# renovate: datasource=crate depName=tokei
 ARG TOKEI_VERSION=14.0.0
+# renovate: datasource=crate depName=bottom
 ARG BOTTOM_VERSION=0.12.3
+# renovate: datasource=crate depName=du-dust
 ARG DU_DUST_VERSION=1.2.4
+# renovate: datasource=crate depName=procs
 ARG PROCS_VERSION=0.14.11
+# renovate: datasource=crate depName=sd
 ARG SD_VERSION=1.0.0
+# renovate: datasource=crate depName=tealdeer
 ARG TEALDEER_VERSION=1.8.1
+# renovate: datasource=crate depName=bandwhich
 ARG BANDWHICH_VERSION=0.23.1
+# renovate: datasource=crate depName=cargo-watch
 ARG CARGO_WATCH_VERSION=8.5.3
+# renovate: datasource=crate depName=cargo-edit
 ARG CARGO_EDIT_VERSION=0.13.9
+# renovate: datasource=crate depName=cargo-outdated
 ARG CARGO_OUTDATED_VERSION=0.18.0
+# renovate: datasource=crate depName=cargo-audit
 ARG CARGO_AUDIT_VERSION=0.22.1
+# renovate: datasource=crate depName=jj-cli
 ARG JJ_CLI_VERSION=0.40.0
+# renovate: datasource=crate depName=starship-jj
 ARG STARSHIP_JJ_VERSION=0.7.0
+# renovate: datasource=crate depName=atuin
 ARG ATUIN_VERSION=18.13.6
 
 # Runtime-stage: standalone tool versions + checksums (linux x86_64)
+# renovate: datasource=github-releases depName=astral-sh/uv
 ARG UV_VERSION=0.11.6
 ARG UV_SHA256=0c6bab77a67a445dc849ed5e8ee8d3cb333b6e2eba863643ce1e228075f27943
+# renovate: datasource=github-releases depName=twpayne/chezmoi
 ARG CHEZMOI_VERSION=2.70.1
 ARG CHEZMOI_SHA256=3f51b236fa337abd1c48b4d893182553aabe2ddb4eff07737c4950d7bea5ed61
+# renovate: datasource=github-releases depName=ajeetdsouza/zoxide
 ARG ZOXIDE_VERSION=0.9.9
 ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
+# renovate: datasource=github-releases depName=anomalyco/opencode
 ARG OPENCODE_VERSION=1.4.3
 ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+# renovate: datasource=github-releases depName=Dicklesworthstone/pi_agent_rust
 ARG PI_AGENT_VERSION=0.1.15
 ARG PI_AGENT_SHA256=4f17de89948bacc3c325437992b668157311e5ec99b38bd6be87a740b5ea8d2c
+# renovate: datasource=github-releases depName=superradcompany/microsandbox
 ARG MSB_VERSION=0.3.12
 ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
+# renovate: datasource=github-tags depName=aws/aws-cli
 ARG AWSCLI_VERSION=2.34.29
 ARG AWSCLI_SHA256=8812e303cb4618ec495d39b94e4f338cf37d274007ca89faf587a0bc4792cd0e
 
 # =============================================================================
 # Stage 1: cargo binary builder
 # =============================================================================
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b AS builder
 
-ARG RUSTUP_SHA256
+ARG RUSTUP_VERSION RUSTUP_SHA256
 ARG JUST_VERSION HYPERFINE_VERSION TOKEI_VERSION BOTTOM_VERSION DU_DUST_VERSION
 ARG PROCS_VERSION SD_VERSION TEALDEER_VERSION BANDWHICH_VERSION
 ARG CARGO_WATCH_VERSION CARGO_EDIT_VERSION CARGO_OUTDATED_VERSION CARGO_AUDIT_VERSION
@@ -77,7 +102,7 @@ RUN apt-get update \
     # --- rustup: download, verify, execute (no curl|sh) ---
     && curl --proto '=https' --tlsv1.2 -sSf \
         -o /tmp/rustup-init \
-        https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init" \
     && echo "${RUSTUP_SHA256}  /tmp/rustup-init" | sha256sum -c - \
     && chmod +x /tmp/rustup-init \
     && /tmp/rustup-init -y --default-toolchain stable --profile minimal \
@@ -111,7 +136,7 @@ RUN --mount=type=cache,target=/opt/cargo/registry,sharing=locked \
 # =============================================================================
 # Stage 2: runtime image
 # =============================================================================
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
 
 ARG UV_VERSION UV_SHA256
 ARG CHEZMOI_VERSION CHEZMOI_SHA256
