@@ -60,7 +60,7 @@ just shell               # Interactive zsh
 
 Runs with `--cap-drop=ALL --read-only --security-opt=no-new-privileges` automatically.
 
-The image runs as `agent` UID/GID 1000 by default. The Podman recipes also use `--userns=keep-id:uid=1000,gid=1000`, which maps your invoking host user to `agent` inside the container so bind-mounted files should be owned by you on the host. Disable or replace it with `PODMAN_USERNS=...`; for example, `PODMAN_USERNS= just claude`.
+The image runs as `agent` UID/GID 1000 by default. The Podman recipes also use `--userns=keep-id:uid=1000,gid=1000 --user agent`, which maps your invoking host user to `agent` inside the container while preserving the image's `USER agent` behavior. Bind-mounted files should be owned by you on the host. Disable or replace the user namespace mapping with `PODMAN_USERNS=...`; for example, `PODMAN_USERNS= just claude`.
 
 ### Docker
 
@@ -196,7 +196,7 @@ All `just` recipes apply these flags automatically:
 | `--read-only` | Immutable root filesystem |
 | `--tmpfs /tmp,/var/tmp,/run` | Writable scratch space only |
 
-The container process runs as the non-root `agent` user. In the default image, `agent` is UID/GID 1000. Rootless Podman recipes additionally pass `--userns=keep-id:uid=1000,gid=1000` so that bind-mounted files are written as your host user while the process remains `agent`/1000 inside the container.
+The container process runs as the non-root `agent` user. In the default image, `agent` is UID/GID 1000. Rootless Podman recipes additionally pass `--userns=keep-id:uid=1000,gid=1000 --user agent` so that bind-mounted files are written as your host user while the process remains `agent`/1000 inside the container.
 
 See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bind mounts.
 

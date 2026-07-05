@@ -52,7 +52,7 @@ The extraction uses a throwaway container:
 podman run --rm -v ./home:/mnt agent-sandbox sh -lc 'cp -a /home/agent/. /mnt/'
 ```
 
-The image defaults to `agent` UID/GID 1000. The Podman recipes use `--userns=keep-id:uid=1000,gid=1000`, so files copied into a bind mount should appear on the host as your invoking user. Set `PODMAN_USERNS=` to disable that mapping if a specific host requires it.
+The image defaults to `agent` UID/GID 1000. The Podman recipes use `--userns=keep-id:uid=1000,gid=1000 --user agent`, so files copied into a bind mount should appear on the host as your invoking user while the container still runs as `agent`. Set `PODMAN_USERNS=` to disable that mapping if a specific host requires it.
 
 Docker does not remap UIDs by default. If your host user is not UID/GID 1000, files extracted by Docker may appear on the host as UID/GID 1000. For Docker-local compatibility, run `just docker-build-user` before `just docker-claude` to rebuild the `agent` user with your host UID/GID.
 

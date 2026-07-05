@@ -16,11 +16,12 @@ Rootless Podman is the preferred local container path. The `just` recipes pass:
 
 ```bash
 --userns=keep-id:uid=1000,gid=1000
+--user agent
 ```
 
-That asks Podman to keep the invoking host user mapped to UID/GID 1000 inside the container. The container process still runs as `agent`/1000, but files written through bind mounts should appear on the host as owned by the invoking user and group.
+That asks Podman to keep the invoking host user mapped to UID/GID 1000 inside the container, then explicitly preserves the image user. The container process still runs as `agent`/1000, but files written through bind mounts should appear on the host as owned by the invoking user and group.
 
-This is explicit because rootless Podman user namespaces are powerful but not magic. Without a keep-id mapping, bind-mounted ownership can still be confusing, especially when your host UID is not 1000.
+This is explicit because rootless Podman user namespaces are powerful but not magic. Without a keep-id mapping, bind-mounted ownership can still be confusing, especially when your host UID is not 1000. Without `--user agent`, Podman's `keep-id` mode can override the image's `USER agent` instruction.
 
 The `just` recipes use `-v ... :z` (lowercase z) which applies SELinux relabeling on Fedora/RHEL. This is necessary for the container to read volumes on SELinux-enabled hosts.
 
@@ -38,7 +39,7 @@ If you see permission errors on a volume mount:
 cat /etc/subuid | grep $(whoami)
 
 # Verify the container runs as agent/1000 inside
-podman run --rm --userns=keep-id:uid=1000,gid=1000 agent-sandbox id
+podman run --rm --userns=keep-id:uid=1000,gid=1000 --user agent agent-sandbox id
 ```
 
 ## Docker

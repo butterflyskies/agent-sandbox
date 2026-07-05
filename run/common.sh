@@ -100,7 +100,7 @@ elif [[ "$RUNTIME" == "podman" ]]; then
         "${API_KEY_ARGS[@]}"
     )
     if [[ -n "$PODMAN_USERNS" ]]; then
-        RUNTIME_ARGS+=(--userns "$PODMAN_USERNS")
+        RUNTIME_ARGS+=(--userns "$PODMAN_USERNS" --user agent)
     fi
     if [[ -d "$HOME_VOL" ]]; then
         RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent:z")
