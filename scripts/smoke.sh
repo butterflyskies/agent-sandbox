@@ -20,7 +20,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 userns_args=()
 if [[ -n "$PODMAN_USERNS" ]]; then
-    userns_args=(--userns="$PODMAN_USERNS")
+    userns_args=(--userns="$PODMAN_USERNS" --user agent)
 fi
 
 podman run --rm \

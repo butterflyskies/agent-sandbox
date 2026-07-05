@@ -115,7 +115,7 @@ init-home target="./home":
         if [[ "$RUNTIME" == "podman" ]]; then
             PODMAN_USERNS="${PODMAN_USERNS-keep-id:uid=1000,gid=1000}"
             if [[ -n "$PODMAN_USERNS" ]]; then
-                RUN_ARGS+=(--userns "$PODMAN_USERNS")
+                RUN_ARGS+=(--userns "$PODMAN_USERNS" --user agent)
             fi
             VOLUME_SPEC="$TARGET:/mnt:z"
         fi
