@@ -25,17 +25,17 @@ ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa
 
 # Builder-stage: cargo crate versions
 # renovate: datasource=crate depName=just
-ARG JUST_VERSION=1.49.0
+ARG JUST_VERSION=1.55.1
 # renovate: datasource=crate depName=hyperfine
 ARG HYPERFINE_VERSION=1.20.0
 # renovate: datasource=crate depName=tokei
 ARG TOKEI_VERSION=14.0.0
 # renovate: datasource=crate depName=bottom
-ARG BOTTOM_VERSION=0.12.3
+ARG BOTTOM_VERSION=0.14.3
 # renovate: datasource=crate depName=du-dust
 ARG DU_DUST_VERSION=1.2.4
 # renovate: datasource=crate depName=procs
-ARG PROCS_VERSION=0.14.11
+ARG PROCS_VERSION=0.14.12
 # renovate: datasource=crate depName=sd
 ARG SD_VERSION=1.0.0
 # renovate: datasource=crate depName=tealdeer
@@ -45,45 +45,45 @@ ARG BANDWHICH_VERSION=0.23.1
 # renovate: datasource=crate depName=cargo-watch
 ARG CARGO_WATCH_VERSION=8.5.3
 # renovate: datasource=crate depName=cargo-edit
-ARG CARGO_EDIT_VERSION=0.13.9
+ARG CARGO_EDIT_VERSION=0.13.11
 # renovate: datasource=crate depName=cargo-outdated
-ARG CARGO_OUTDATED_VERSION=0.18.0
+ARG CARGO_OUTDATED_VERSION=0.19.0
 # renovate: datasource=crate depName=cargo-audit
-ARG CARGO_AUDIT_VERSION=0.22.1
+ARG CARGO_AUDIT_VERSION=0.22.2
 # renovate: datasource=crate depName=jj-cli
-ARG JJ_CLI_VERSION=0.40.0
+ARG JJ_CLI_VERSION=0.43.0
 # renovate: datasource=crate depName=starship-jj
 ARG STARSHIP_JJ_VERSION=0.7.0
 # renovate: datasource=crate depName=atuin
-ARG ATUIN_VERSION=18.13.6
+ARG ATUIN_VERSION=18.16.1
 
 # Runtime-stage: standalone tool versions + checksums (linux x86_64)
 # renovate: datasource=github-releases depName=astral-sh/uv
-ARG UV_VERSION=0.11.6
-ARG UV_SHA256=0c6bab77a67a445dc849ed5e8ee8d3cb333b6e2eba863643ce1e228075f27943
+ARG UV_VERSION=0.11.26
+ARG UV_SHA256=6426a73c3837e6e2483ee344cbc00f36394d179afcba6183cb77437e67db4af0
 # renovate: datasource=github-releases depName=twpayne/chezmoi
-ARG CHEZMOI_VERSION=2.70.1
-ARG CHEZMOI_SHA256=3f51b236fa337abd1c48b4d893182553aabe2ddb4eff07737c4950d7bea5ed61
+ARG CHEZMOI_VERSION=2.70.5
+ARG CHEZMOI_SHA256=da4f1346e3626c68cbe3620abc12134d886733420df92e32edb48d0406c7f9e5
 # renovate: datasource=github-releases depName=ajeetdsouza/zoxide
-ARG ZOXIDE_VERSION=0.9.9
-ARG ZOXIDE_SHA256=4ff057d3c4d957946937274c2b8be7af2a9bbae7f90a1b5e9baaa7cb65a20caa
+ARG ZOXIDE_VERSION=0.10.0
+ARG ZOXIDE_SHA256=2d93385b99f3e82cf2701609a1bffcad863fbeb75aa3fe7eb6be4d29be68b1ae
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION=1.4.3
-ARG OPENCODE_SHA256=34d503ebb029853293be6fd4d441bbb2dbb03919bfa4525e88b1ca55d68f3e17
+ARG OPENCODE_VERSION=1.17.13
+ARG OPENCODE_SHA256=157afa289d1a8d9372de0ce19ac726119b937a1f6b201808d46f06e4e59bb348
 # renovate: datasource=github-releases depName=Dicklesworthstone/pi_agent_rust
-ARG PI_AGENT_VERSION=0.1.15
-ARG PI_AGENT_SHA256=4f17de89948bacc3c325437992b668157311e5ec99b38bd6be87a740b5ea8d2c
+ARG PI_AGENT_VERSION=0.1.18
+ARG PI_AGENT_SHA256=b14e27c072721941c956219f999e59d72693bbf4f91a7a2b9b4ba80b6f3da847
 # renovate: datasource=github-releases depName=superradcompany/microsandbox
-ARG MSB_VERSION=0.3.12
-ARG MSB_SHA256=bd0eb76a91e4a0dcdd7c16a3525f35435727422a43c4470f31d3aec1c6b56902
+ARG MSB_VERSION=0.6.4
+ARG MSB_SHA256=ccefa5a0b7663a64825aada69182af5e6ad7cf1fdd6c75f4f8777b361970b328
 # renovate: datasource=github-tags depName=aws/aws-cli
-ARG AWSCLI_VERSION=2.34.29
-ARG AWSCLI_SHA256=8812e303cb4618ec495d39b94e4f338cf37d274007ca89faf587a0bc4792cd0e
+ARG AWSCLI_VERSION=2.35.15
+ARG AWSCLI_SHA256=50692e3e2a606007d7789b5a307dca41452a965dea1f3d3687972da6e5adc86c
 
 # =============================================================================
 # Stage 1: cargo binary builder
 # =============================================================================
-FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b AS builder
+FROM ubuntu:26.04@sha256:b7f48194d4d8b763a478a621cdc81c27be222ba2206ca3ca6bc42b49685f3d9e AS builder
 
 ARG RUSTUP_VERSION RUSTUP_SHA256
 ARG JUST_VERSION HYPERFINE_VERSION TOKEI_VERSION BOTTOM_VERSION DU_DUST_VERSION
@@ -136,7 +136,7 @@ RUN --mount=type=cache,target=/opt/cargo/registry,sharing=locked \
 # =============================================================================
 # Stage 2: runtime image
 # =============================================================================
-FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+FROM ubuntu:26.04@sha256:b7f48194d4d8b763a478a621cdc81c27be222ba2206ca3ca6bc42b49685f3d9e
 
 ARG UV_VERSION UV_SHA256
 ARG CHEZMOI_VERSION CHEZMOI_SHA256
@@ -309,23 +309,24 @@ RUN set -eux \
     && chmod +x /usr/local/bin/opencode \
     && rm /tmp/opencode.tar.gz \
     # --- pi-agent-rust (AI coding agent CLI — binary name: pi) ---
-    && curl -fsSL -o /tmp/pi.tar.gz \
-        "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${PI_AGENT_VERSION}/pi-${PI_AGENT_VERSION}-linux_amd64.tar.gz" \
-    && echo "${PI_AGENT_SHA256}  /tmp/pi.tar.gz" | sha256sum -c - \
-    && tar xzf /tmp/pi.tar.gz -C /usr/local/bin pi \
+    && curl -fsSL -o /tmp/pi.tar.xz \
+        "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${PI_AGENT_VERSION}/pi-linux-amd64.tar.xz" \
+    && echo "${PI_AGENT_SHA256}  /tmp/pi.tar.xz" | sha256sum -c - \
+    && tar xJf /tmp/pi.tar.xz -C /usr/local/bin --strip-components=1 "pi-${PI_AGENT_VERSION}-x86_64-unknown-linux-gnu/pi" \
     && chmod +x /usr/local/bin/pi \
-    && rm /tmp/pi.tar.gz \
+    && rm /tmp/pi.tar.xz \
     # --- microsandbox (binary + libkrunfw runtime lib) ---
     && curl -fsSL -o /tmp/msb.tar.gz \
         "https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz" \
     && echo "${MSB_SHA256}  /tmp/msb.tar.gz" | sha256sum -c - \
-    && tar xzf /tmp/msb.tar.gz -C /tmp msb libkrunfw.so.5.2.1 \
+    && tar xzf /tmp/msb.tar.gz -C /tmp \
     && install -m 755 /tmp/msb /usr/local/bin/msb \
-    && install -m 755 /tmp/libkrunfw.so.5.2.1 /usr/local/lib/ \
-    && ln -sf libkrunfw.so.5.2.1 /usr/local/lib/libkrunfw.so.5 \
+    && LIBKRUNFW="$(find /tmp -maxdepth 1 -name 'libkrunfw.so.*' -type f | head -1)" \
+    && install -m 755 "$LIBKRUNFW" /usr/local/lib/ \
+    && ln -sf "$(basename "$LIBKRUNFW")" /usr/local/lib/libkrunfw.so.5 \
     && ln -sf libkrunfw.so.5 /usr/local/lib/libkrunfw.so \
     && ldconfig \
-    && rm /tmp/msb /tmp/libkrunfw.so.5.2.1 /tmp/msb.tar.gz
+    && rm /tmp/msb "$LIBKRUNFW" /tmp/msb.tar.gz
 
 # ---------------------------------------------------------------------------
 # Rust toolchain + cargo binaries from builder
@@ -359,8 +360,8 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
 # ---------------------------------------------------------------------------
 # AI coding agents + language runtimes (runs as agent user)
 # Claude Code installer is vendored in scripts/claude-install.sh — it
-# verifies the binary SHA256 from a manifest before execution. The script
-# itself is snapshotted at build time; Claude Code self-updates at runtime.
+# installs the pinned CLAUDE_CODE_VERSION from scripts/install-tools.sh and
+# verifies the binary SHA256 from the release manifest before execution.
 # ---------------------------------------------------------------------------
 COPY scripts/agent-entrypoint /usr/local/bin/agent-entrypoint
 COPY scripts/ /tmp/scripts/

@@ -10,25 +10,26 @@ mkdir -p "$NPM_CONFIG_PREFIX" "$HOME/.local/bin"
 # ==========================================================================
 # Pinned runtime versions (see VERSIONS.md for validation methodology)
 # ==========================================================================
-NODEJS_VERSION=24.14.1
-PYTHON_VERSION=3.12.13
-GOLANG_VERSION=1.26.2
+NODEJS_VERSION=24.18.0
+PYTHON_VERSION=3.14.6
+GOLANG_VERSION=1.26.4
 JAVA_VERSION=oracle-graalvm-21.0.8
-RUBY_VERSION=3.4.8
+RUBY_VERSION=4.0.5
 ZIG_VERSION=0.15.1
-BUN_VERSION=1.3.12
-PNPM_VERSION=10.33.0
-GRADLE_VERSION=9.4.1
+BUN_VERSION=1.3.14
+PNPM_VERSION=10.34.4
+GRADLE_VERSION=9.6.1
 MAVEN_VERSION=3.9.9
 
-CODEX_VERSION=0.120.0
-GEMINI_CLI_VERSION=0.37.1
+CODEX_VERSION=0.142.5
+GEMINI_CLI_VERSION=0.49.0
+CLAUDE_CODE_VERSION=2.1.201
 
 # ==========================================================================
 # asdf bootstrap — pinned release, SHA256-verified
 # ==========================================================================
-ASDF_VERSION=0.18.1
-ASDF_SHA256=56141dc99eab75c140dcdd85cf73f3b82fed2485a8dccd4f11a4dc5cbcb6ea5c
+ASDF_VERSION=0.19.0
+ASDF_SHA256=f6aa14de1348c9a85f3095f79792a5cd04305c466e6458c69a36a1621cd729ef
 ASDF_BIN="$ASDF_DATA_DIR/bin"
 mkdir -p "$ASDF_BIN"
 ARCH=$(uname -m)
@@ -115,7 +116,7 @@ echo "maven $MAVEN_VER"
 # Claude Code (vendored installer — self-verifies binary via SHA256 manifest)
 # ==========================================================================
 echo "--- Installing Claude Code ---"
-bash /tmp/scripts/claude-install.sh
+bash /tmp/scripts/claude-install.sh "$CLAUDE_CODE_VERSION"
 CLAUDE_PATH="$(which claude 2>/dev/null || echo '/home/agent/.local/bin/claude')"
 echo "claude: $CLAUDE_PATH"
 

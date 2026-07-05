@@ -11,7 +11,7 @@ if [[ -n "$TARGET" ]] && [[ ! "$TARGET" =~ ^(stable|latest|[0-9]+\.[0-9]+\.[0-9]
     exit 1
 fi
 
-GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
+DOWNLOAD_BASE_URL="https://downloads.claude.ai/claude-code-releases"
 DOWNLOAD_DIR="$HOME/.claude/downloads"
 
 # Check for required dependencies
@@ -104,11 +104,23 @@ else
 fi
 mkdir -p "$DOWNLOAD_DIR"
 
-# Always download latest version (which has the most up-to-date installer)
-version=$(download_file "$GCS_BUCKET/latest")
+# Download the requested version. `stable` and `latest` follow the upstream
+# channel; explicit versions are pinned for reproducible image builds.
+if [ -z "$TARGET" ] || [ "$TARGET" = "stable" ] || [ "$TARGET" = "latest" ]; then
+    version=$(download_file "$DOWNLOAD_BASE_URL/latest")
+else
+    version="$TARGET"
+fi
+
+# Reject non-version content (e.g. an HTML error page) before it reaches the manifest URL
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Failed to get a valid version from downloads.claude.ai (got unexpected content)." >&2
+    echo "This can happen if the download service is unreachable or not available in your region - see https://www.anthropic.com/supported-countries" >&2
+    exit 1
+fi
 
 # Download manifest and extract checksum
-manifest_json=$(download_file "$GCS_BUCKET/$version/manifest.json")
+manifest_json=$(download_file "$DOWNLOAD_BASE_URL/$version/manifest.json")
 
 # Use jq if available, otherwise fall back to pure bash parsing
 if [ "$HAS_JQ" = true ]; then
@@ -125,7 +137,7 @@ fi
 
 # Download and verify
 binary_path="$DOWNLOAD_DIR/claude-$version-$platform"
-if ! download_file "$GCS_BUCKET/$version/$platform/claude" "$binary_path"; then
+if ! download_file "$DOWNLOAD_BASE_URL/$version/$platform/claude" "$binary_path"; then
     echo "Download failed" >&2
     rm -f "$binary_path"
     exit 1
@@ -148,10 +160,36 @@ chmod +x "$binary_path"
 
 # Run claude install to set up launcher and shell integration
 echo "Setting up Claude Code..."
-"$binary_path" install ${TARGET:+"$TARGET"}
+install_code=0
+"$binary_path" install ${TARGET:+"$TARGET"} || install_code=$?
 
 # Clean up downloaded file
 rm -f "$binary_path"
+
+if [ "$install_code" -ne 0 ]; then
+    # A signal death mid-install kills the binary's TUI with no chance to
+    # restore the terminal, leaving the user's shell in raw mode (typed
+    # characters stop echoing). Restore it before printing anything.
+    if [ "$install_code" -ge 128 ] && [ -t 0 ]; then
+        stty sane 2>/dev/null || true
+    fi
+    # Red when stderr is a terminal, so the explanation stands out from the
+    # surrounding install output; plain when piped or captured.
+    red="" reset=""
+    if [ -t 2 ]; then
+        red=$'\033[31m'
+        reset=$'\033[0m'
+    fi
+    # Signal deaths (exit code 128+N) print nothing of their own. 137 = SIGKILL,
+    # which on Linux is almost always the kernel OOM killer on small hosts.
+    if [ "$install_code" -eq 137 ] && [ "$os" = "linux" ]; then
+        echo "${red}Installation was killed before it could finish (exit code 137). This usually means the system ran out of memory.${reset}" >&2
+        echo "${red}Claude Code needs roughly 512MB of free memory to install. Free up memory, then run this script again.${reset}" >&2
+    elif [ "$install_code" -ge 128 ]; then
+        echo "${red}Installation was killed before it could finish (exit code $install_code).${reset}" >&2
+    fi
+    exit "$install_code"
+fi
 
 echo ""
 echo "✅ Installation complete!"

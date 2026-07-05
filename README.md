@@ -206,7 +206,7 @@ See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bin
 |----------|----------|
 | **AI agents** | Claude Code (native), Codex, Gemini CLI, OpenCode, pi-agent-rust |
 | **Sandbox** | microsandbox (`msb`) CLI + runtime |
-| **Runtimes** | Node.js 24 LTS, Python 3.12, Go, Java (GraalVM 21), Ruby, Zig, Bun (via asdf) |
+| **Runtimes** | Node.js 24 LTS, Python 3.14, Go, Java (GraalVM 21), Ruby 4, Zig, Bun (via asdf) |
 | **Build tools** | Rust (stable) + cargo tools, Gradle, Maven, pnpm, uv, cmake, ninja, meson |
 | **VCS** | git, git-lfs, git-crypt, jj (Jujutsu), gh CLI |
 | **Cloud** | Google Cloud CLI (`gcloud`), AWS CLI v2 (`aws`), Azure CLI (`az`) |
@@ -235,25 +235,24 @@ All tool installations use **pinned versions with SHA256 checksum verification**
 | Tool | Install method | Pinned | Integrity check |
 |------|---------------|--------|-----------------|
 | Rust toolchain | Direct binary download | rustup-init SHA256 | sha256sum verify |
-| Cargo crates (15) | `cargo install --locked @version` | Exact versions | cargo lockfile |
+| Cargo crates (16) | `cargo install --locked @version` | Exact versions | cargo lockfile |
 | uv | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | chezmoi | GitHub release binary | Version + SHA256 | sha256sum verify |
 | zoxide | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | opencode | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | pi-agent-rust | GitHub release tarball | Version + SHA256 | sha256sum verify |
 | microsandbox | GitHub release tarball | Version + SHA256 | sha256sum verify |
-| Claude Code | Vendored installer script | Script snapshotted at build | Installer verifies binary SHA256 from manifest |
-| Codex, Gemini | npm install -g | Floating (latest) | npm registry signatures |
+| Claude Code | Vendored installer script | Exact version | Installer verifies binary SHA256 from manifest |
+| Codex, Gemini | npm install -g | Exact versions | npm registry signatures |
 | gh, eza, step-cli | apt with signed repos | Distro package version | GPG-signed apt repos |
 | gcloud, az | apt with signed repos | Distro package version | GPG-signed apt repos |
-| AWS CLI v2 | Direct zip download | Floating (latest) | Amazon TLS |
+| AWS CLI v2 | Direct zip download | Version + SHA256 | sha256sum verify |
 | asdf plugins | asdf-plugin-manager | Git SHA pinned | Exact commit checkout |
 | asdf runtimes | asdf install | Exact versions | Plugin-specific verification |
 
 ### Remaining risks
 
-- **npm packages (Codex, Gemini) float to latest.** npm registry signatures provide some protection, but versions are not locked.
-- **AWS CLI v2 is not checksum-verified.** Amazon distributes it as a zip with no published checksums. TLS is the only protection.
+- **npm package dependency graphs can still move.** Codex and Gemini CLI package versions are pinned, but npm transitive dependency resolution still depends on the registry unless lockfiles are introduced.
 - **Third-party apt signing keys are fetched at build time** over TLS without pinning.
 - **`apt-get upgrade` introduces drift.** Image content depends on build date.
 - **The image is large.** Expect 3–5 GB with the full build toolchain, cloud CLIs, and multiple runtimes.
