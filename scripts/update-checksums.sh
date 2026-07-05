@@ -67,7 +67,7 @@ OPENCODE_VERSION=$(get_arg OPENCODE_VERSION)
 TOOLS[OPENCODE]="https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz"
 
 PI_AGENT_VERSION=$(get_arg PI_AGENT_VERSION)
-TOOLS[PI_AGENT]="https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${PI_AGENT_VERSION}/pi-${PI_AGENT_VERSION}-linux_amd64.tar.gz"
+TOOLS[PI_AGENT]="https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${PI_AGENT_VERSION}/pi-linux-amd64.tar.xz"
 
 MSB_VERSION=$(get_arg MSB_VERSION)
 TOOLS[MSB]="https://github.com/superradcompany/microsandbox/releases/download/v${MSB_VERSION}/microsandbox-linux-x86_64.tar.gz"

@@ -22,6 +22,7 @@ how to validate and update them.
 | Cargo crate versions | `Containerfile` ARG block | `ARG CRATE_VERSION=X.Y.Z` |
 | Standalone tool versions + SHA256 | `Containerfile` ARG block | `ARG TOOL_VERSION=X.Y.Z` / `ARG TOOL_SHA256=...` |
 | asdf runtime versions | `scripts/install-tools.sh` top block | `RUNTIME_VERSION=X.Y.Z` |
+| Claude Code version | `scripts/install-tools.sh` top block | `CLAUDE_CODE_VERSION=X.Y.Z` |
 | asdf plugin git SHAs | `config/plugin-versions` | `name  url  sha` (tab-separated) |
 | asdf-plugin-manager | `scripts/asdf-plugin-manager` | Vendored script (v1.5.0) |
 | asdf itself | `scripts/install-tools.sh` | `ASDF_VERSION=X.Y.Z` |
@@ -46,7 +47,7 @@ curl -fsSL 'https://go.dev/dl/?mode=json' | jq -r '.[0].version'
 curl -fsSL https://endoflife.date/api/ruby.json \
   | jq -r '.[:3] | .[] | "\(.cycle): \(.latest) (EOL: \(.eol))"'
 
-# Java (GraalVM) — use LTS line (21), not latest feature release
+# Java (GraalVM) — use the latest LTS line that asdf-java can deliver
 curl -fsSL https://endoflife.date/api/oracle-jdk.json \
   | jq -r '.[:5] | .[] | "\(.cycle): \(.latest) (EOL: \(.eol))"'
 
@@ -58,7 +59,8 @@ curl -fsSL https://api.github.com/repos/ziglang/zig/releases \
 curl -fsSL https://api.github.com/repos/oven-sh/bun/releases/latest | jq -r '.tag_name'
 
 # pnpm
-curl -fsSL https://api.github.com/repos/pnpm/pnpm/releases/latest | jq -r '.tag_name'
+curl -fsSL 'https://registry.npmjs.org/pnpm' \
+  | jq -r '[.versions | keys[] | select(startswith("10."))] | sort_by(split(".") | map(tonumber)) | .[-1]'
 
 # Gradle — stable only, no RCs
 curl -fsSL https://services.gradle.org/versions/current | jq -r '.version'
@@ -120,7 +122,7 @@ curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${VER}/open
 
 # pi-agent-rust
 VER=X.Y.Z
-curl -fsSL "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${VER}/pi-${VER}-linux_amd64.tar.gz" | sha256sum
+curl -fsSL "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v${VER}/pi-linux-amd64.tar.xz" | sha256sum
 
 # microsandbox
 VER=X.Y.Z
@@ -137,6 +139,14 @@ Others don't (zoxide, opencode) — compute from the download and pin.
 
 ```bash
 curl -fsSL https://api.github.com/repos/asdf-vm/asdf/releases/latest | jq -r '.tag_name'
+```
+
+### 6. Check Claude Code
+
+```bash
+curl -fsSL https://downloads.claude.ai/claude-code-releases/latest
+curl -fsSL "https://downloads.claude.ai/claude-code-releases/$(curl -fsSL https://downloads.claude.ai/claude-code-releases/latest)/manifest.json" \
+  | jq -r '.version, .commit, .buildDate'
 ```
 
 ## Update procedure
@@ -160,23 +170,32 @@ curl -fsSL https://api.github.com/repos/asdf-vm/asdf/releases/latest | jq -r '.t
 - **Maven**: asdf-maven plugin historically lags upstream by several patch
   versions. If you need the absolute latest, consider updating the plugin
   SHA first.
-- **Claude Code**: Version floats — the installer always fetches latest.
-  The binary itself is SHA256-verified by the installer against a manifest,
-  but we cannot pin the version without hardcoding the GCS bucket URL.
-- **Codex, Gemini CLI**: npm packages installed at latest. Pin with
-  `npm install -g @openai/codex@X.Y.Z` if reproducibility is required.
-- **apt packages**: Versions come from Ubuntu 24.04 repos + third-party
-  repos (gh, eza, step-cli). Pinning apt packages to exact versions is
-  possible but brittle across repo updates.
+- **Java/GraalVM**: asdf-java can lag new GraalVM LTS lines. Use the latest
+  GraalVM LTS that appears in `asdf list all java`; at the last update,
+  GraalVM 25 was current upstream but the plugin still delivered 21.0.8.
+- **Claude Code**: The installed version is pinned in `scripts/install-tools.sh`.
+  The vendored installer should still be refreshed periodically from
+  `https://downloads.claude.ai/claude-code-releases/bootstrap.sh`; the binary
+  is SHA256-verified by the installer against the release manifest.
+- **Codex, Gemini CLI**: npm package versions are pinned, but transitive
+  dependency resolution still depends on the npm registry unless lockfiles
+  are introduced.
+- **pnpm**: Stay on the latest 10.x release until `asdf-pnpm` supports pnpm
+  11's `.mjs` binary layout.
+- **apt packages**: Versions come from Ubuntu 26.04 repos + third-party
+  repos (gh, eza, step-cli, gcloud, az). Pinning apt packages to exact
+  versions is possible but brittle across repo updates. Microsoft's Azure CLI
+  repository did not yet publish a 26.04 suite at the last update, so the
+  image still uses its `noble` repository path.
 
 ## EOL policy
 
 Prefer **active LTS** versions over latest/current:
 - Node.js: active LTS line (even major numbers — currently 24)
-- Java: LTS releases (currently 21, next is 25)
-- Python: any supported 3.x (3.12+ recommended)
+- Java: LTS releases that asdf-java can deliver
+- Python: any supported 3.x (3.14+ recommended)
 - Go: current + previous (1.26.x and 1.25.x both supported)
-- Ruby: current + previous (3.4.x and 3.3.x both supported)
+- Ruby: current + previous (4.0.x and 3.4.x both supported)
 
 Avoid versions in **maintenance-only** or **EOL** status. The endoflife.date
 API is useful for checking: `curl -fsSL https://endoflife.date/api/<tool>.json`
