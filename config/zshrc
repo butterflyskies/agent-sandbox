@@ -27,7 +27,7 @@ export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.npm-global}"
 # PATH priority: user-local overrides > cargo user > asdf shims > npm global > go > system cargo
 path=("$HOME/.local/bin" "$HOME/.cargo/bin" "$ASDF_DATA_DIR/shims" "$NPM_CONFIG_PREFIX/bin" "$HOME/go/bin" $path)
 
-# asdf + starship are installed at build time in /usr/local/bin
+# starship is installed at build time in /usr/local/bin.
 eval "$(starship init zsh)"
 eval "$(starship completions zsh)"
 if [[ -d "$ASDF_DATA_DIR" ]]; then

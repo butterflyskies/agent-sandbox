@@ -91,6 +91,8 @@ just docker-claude
 | `IMAGE_TAG` | `latest` | Image tag |
 | `REGISTRY` | `ghcr.io/butterflyskies` | Registry for push/pull |
 | `HOME_VOL` | `./home` | External home directory (optional) |
+| `AGENT_HOME_BOOTSTRAP` | `1` | Entry-point home-template seeding; set `0` to disable |
+| `AGENT_HOME_TEMPLATE` | `/opt/agent-home-template` | Template path used by the entrypoint |
 | `PODMAN_USERNS` | `keep-id:uid=1000,gid=1000` | Podman `--userns` value; empty disables |
 | `MSB_CPUS` | host/2 | CPU count for msb |
 | `MSB_MEMORY` | host/2 | Memory for msb |
@@ -129,9 +131,9 @@ Three modes — choose based on your workflow. See [docs/persistence.md](docs/pe
 
 **Podman/Docker without `HOME_VOL`:** Container is not run with `--rm`, so it persists after exit. Re-attach with `podman start -ai <id>` or just run again.
 
-### 2. External volume — full image home (`just init-home`)
+### 2. External volume — image home template (`just init-home`)
 
-Extracts the complete `/home/agent` from the image into a local directory. All tools, configs, and shell setup included.
+Extracts the image's `/opt/agent-home-template` into a local directory. Shell config, `.tool-versions`, asdf runtimes, npm globals, and home-level defaults are copied so replacing `/home/agent` with a volume does not hide the staged tools.
 
 ```bash
 just init-home           # Extracts to ./home (errors if non-empty)
@@ -149,6 +151,8 @@ Run with the volume:
 HOME_VOL=./home just claude
 ```
 
+The entrypoint also seeds missing files from `/opt/agent-home-template` into a mounted `$HOME` on startup using `rsync --ignore-existing`. Existing files in your volume are left alone, except the image-owned home `.tool-versions` is refreshed so asdf selects versions installed by the current image. Set `AGENT_HOME_BOOTSTRAP=0` to disable this bootstrap.
+
 ### 3. Skeleton volume (`just init`)
 
 Creates a minimal directory structure — no tool copies from the image, just the folders. Lighter weight; bring your own dotfiles.
@@ -163,7 +167,7 @@ When to use each:
 |------|-------------|-------|---------|
 | Built-in (msb) | Until `msb-reset` | None | Daily use with microsandbox |
 | Built-in (container) | Until container removed | None | Quick one-off sessions |
-| `init-home` | Volume-backed | One `init-home` | Portable home, custom dotfiles layer |
+| `init-home` | Volume-backed | One `init-home` | Portable home, image dotfiles layer |
 | `init` (skeleton) | Volume-backed | Manual setup | Minimal, BYO everything |
 
 ## Security

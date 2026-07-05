@@ -1,15 +1,14 @@
 #!/bin/bash
 # Initialize a persistent home directory for the agent-sandbox agent.
 #
-# NOTE: For a fully populated home with all build-time tools and configs,
-# prefer the image-extraction method:
+# NOTE: For the image's default dotfiles and writable home state, prefer the
+# image-template extraction method:
 #
 #   just init-home [target-dir]
 #
-# That command copies /home/agent directly out of the image (including asdf,
-# cargo binaries, zsh config, etc.) into a local directory. Use this script
-# instead when you want a lightweight skeleton without pulling the full image,
-# or when you plan to supply your own tooling.
+# That command copies /opt/agent-home-template out of the image, including
+# build-time asdf runtimes, npm globals, and shell config. The entrypoint uses
+# the same template to seed missing files into a mounted home on first start.
 #
 # This creates a minimal directory structure that gets mounted as /home/agent.
 # Populate the files described below before running the container.
@@ -113,8 +112,8 @@ echo "  $TARGET/.config/gh/         — gh auth (hosts.yml)"
 echo "  $TARGET/.ssh/               — SSH keys (optional)"
 echo "  $TARGET/dev/                — source repos to work on"
 echo ""
-echo "Note: this skeleton does not include build-time tools (asdf, cargo"
-echo "binaries, zsh config, etc.). For a fully populated home directory, run:"
+echo "Note: this skeleton does not include the image's default dotfiles or"
+echo "build-time asdf/npm tool installs. To copy the image home template, run:"
 echo "  just init-home $TARGET"
 echo ""
 echo "Then run:"

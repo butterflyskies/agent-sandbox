@@ -17,7 +17,8 @@ if ! podman run --rm "$IMAGE_REF" --version; then
 fi
 
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+home_tmp=""
+trap 'rm -rf "$tmp" "$home_tmp"' EXIT
 userns_args=()
 if [[ -n "$PODMAN_USERNS" ]]; then
     userns_args=(--userns="$PODMAN_USERNS" --user agent)
@@ -33,6 +34,23 @@ actual="$(stat -c '%u:%g' "$tmp/probe")"
 expected="$(id -u):$(id -g)"
 if [[ "$actual" != "$expected" ]]; then
     echo "UID/GID smoke failed: expected $expected, got $actual" >&2
+    exit 1
+fi
+
+home_tmp="$(mktemp -d)"
+printf 'nodejs 0.0.0\n' > "$home_tmp/.tool-versions"
+podman run --rm \
+    "${userns_args[@]}" \
+    -v "$home_tmp:/home/agent:Z" \
+    "$IMAGE_REF" \
+    sh -lc 'test -f "$HOME/.zshrc" && test -f "$HOME/.tool-versions" && command -v node >/dev/null'
+
+if [[ ! -f "$home_tmp/.zshrc" || ! -f "$home_tmp/.tool-versions" ]]; then
+    echo "Home template smoke failed: mounted home was not seeded" >&2
+    exit 1
+fi
+if grep -q 'nodejs 0.0.0' "$home_tmp/.tool-versions"; then
+    echo "Home template smoke failed: .tool-versions was not refreshed" >&2
     exit 1
 fi
 
