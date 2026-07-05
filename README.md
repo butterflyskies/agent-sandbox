@@ -1,19 +1,19 @@
 # agent-sandbox
 
-OCI image for running AI coding agents — Claude Code, Codex, Gemini CLI, OpenCode, and [pi-agent-rust](https://github.com/Dicklesworthstone/pi_agent_rust) — inside a hardened, reproducible environment with three runtime options: [microsandbox](https://github.com/microsandbox/microsandbox) microVMs, rootless Podman, or Docker.
+OCI image for running AI coding agents — Claude Code, Codex, Gemini CLI, OpenCode, and [pi-agent-rust](https://github.com/Dicklesworthstone/pi_agent_rust) — inside a hardened, reproducible environment with three runtime options: rootless Podman, [microsandbox](https://github.com/microsandbox/microsandbox) microVMs, or Docker.
 
 ## Quick start
 
 No `init` needed. Persistence is automatic out of the box.
 
-**microsandbox (recommended — microVM isolation, secret scoping, network policy):**
-```bash
-just build && just msb-claude
-```
-
-**Podman (default — rootless, hardened):**
+**Podman (preferred default — rootless, hardened):**
 ```bash
 just build && just claude
+```
+
+**microsandbox (microVM isolation, secret scoping, network policy):**
+```bash
+just build && just msb-claude
 ```
 
 **Docker:**
@@ -60,6 +60,8 @@ just shell               # Interactive zsh
 
 Runs with `--cap-drop=ALL --read-only --security-opt=no-new-privileges` automatically.
 
+The image runs as `agent` UID/GID 1000 by default. The Podman recipes also use `--userns=keep-id:uid=1000,gid=1000`, which maps your invoking host user to `agent` inside the container so bind-mounted files should be owned by you on the host. Disable or replace it with `PODMAN_USERNS=...`; for example, `PODMAN_USERNS= just claude`.
+
 ### Docker
 
 ```bash
@@ -69,7 +71,16 @@ just docker-pi           # pi-agent-rust
 just docker-shell        # Interactive zsh
 ```
 
-Same hardening as Podman, minus SELinux labels.
+Same hardening as Podman, minus SELinux labels and Podman user namespace mapping. Docker does not remap UIDs by default, so files created through bind mounts may appear as UID/GID 1000 on the host unless your host account also uses 1000.
+
+For a Docker-local image whose `agent` UID/GID matches the invoking user:
+
+```bash
+just docker-build-user
+just docker-claude
+```
+
+`just docker-build-user` overwrites the local `IMAGE:IMAGE_TAG` tag, defaulting to `agent-sandbox:latest`, so the Docker recipes use the rebuilt image automatically.
 
 ### Env var overrides
 
@@ -80,17 +91,33 @@ Same hardening as Podman, minus SELinux labels.
 | `IMAGE_TAG` | `latest` | Image tag |
 | `REGISTRY` | `ghcr.io/butterflyskies` | Registry for push/pull |
 | `HOME_VOL` | `./home` | External home directory (optional) |
+| `PODMAN_USERNS` | `keep-id:uid=1000,gid=1000` | Podman `--userns` value; empty disables |
 | `MSB_CPUS` | host/2 | CPU count for msb |
 | `MSB_MEMORY` | host/2 | Memory for msb |
 | `MSB_NAME` | `agent-sandbox` | Named sandbox for msb |
 | `MSB_NETWORK_POLICY` | `public-only` | msb network: `public-only`, `allow-all`, `none` |
 
 Example:
+
 ```bash
 MSB_NAME=my-project just msb-claude
 HOME_VOL=/data/agent-home just claude
+PODMAN_USERNS= just claude
 IMAGE_TAG=20250418 just docker-claude
 ```
+
+## Entrypoint
+
+The image uses `/usr/local/bin/agent-entrypoint`, a small zsh dispatcher:
+
+| Invocation | Behavior |
+|------------|----------|
+| `podman run agent-sandbox` | Runs `claude` |
+| `podman run agent-sandbox --version` | Runs `claude --version` |
+| `podman run agent-sandbox shell` | Runs `zsh` |
+| `podman run agent-sandbox shell -lc 'echo ok'` | Runs `zsh -lc 'echo ok'` |
+| `podman run agent-sandbox codex` | Runs `codex` |
+| `podman run agent-sandbox zsh` | Runs `zsh` |
 
 ## Persistence
 
@@ -169,7 +196,7 @@ All `just` recipes apply these flags automatically:
 | `--read-only` | Immutable root filesystem |
 | `--tmpfs /tmp,/var/tmp,/run` | Writable scratch space only |
 
-Rootless Podman maps the container's root to your unprivileged host UID — there is no real root.
+The container process runs as the non-root `agent` user. In the default image, `agent` is UID/GID 1000. Rootless Podman recipes additionally pass `--userns=keep-id:uid=1000,gid=1000` so that bind-mounted files are written as your host user while the process remains `agent`/1000 inside the container.
 
 See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bind mounts.
 
@@ -191,6 +218,7 @@ See [docs/uid-mapping.md](docs/uid-mapping.md) for notes on UID mapping with bin
 
 ```bash
 just build                          # Local build, tags :latest (or $IMAGE_TAG)
+just docker-build-user              # Docker-local rebuild with agent UID/GID matching you
 just release                        # CalVer build: tags :latest + :YYYYMMDD, pushes both
 just push                           # Push current tag to $REGISTRY
 REGISTRY=ghcr.io/myorg just release # Push to a custom registry

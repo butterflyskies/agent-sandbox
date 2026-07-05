@@ -1,0 +1,18 @@
+#!/usr/bin/env zsh
+emulate -L zsh
+set -euo pipefail
+
+if (( $# == 0 )); then
+  exec claude
+fi
+
+if [[ "$1" == -* ]]; then
+  exec claude "$@"
+fi
+
+if [[ "$1" == "shell" ]]; then
+  shift
+  exec zsh "$@"
+fi
+
+exec "$@"

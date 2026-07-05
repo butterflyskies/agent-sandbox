@@ -1,56 +1,81 @@
-# UID mapping
+# UID Mapping
 
-The image runs as `agent`, uid 1000, gid 1000. How that maps to your host depends on the runtime.
+The default image runs as the non-root user `agent`, UID 1000 and GID 1000. How that maps to your host depends on the runtime.
 
 ## Summary
 
 | Runtime | Default UID behavior | File ownership on volumes |
 |---------|---------------------|--------------------------|
-| Podman (rootless) | Host UID mapped to uid 1000 inside container | Files owned by your host user |
-| Docker | No user namespace remapping | Files owned by uid 1000 on host |
-| microsandbox | microVM has its own user space | Volumes owned by uid 1000 inside VM |
+| Podman (rootless, preferred) | `--userns=keep-id:uid=1000,gid=1000` maps your host user to `agent` inside the container | Files should be owned by your host user |
+| Docker | No user namespace remapping by default | Files owned by UID/GID 1000 on host unless you rebuild or override |
+| microsandbox | microVM has its own user space | Volumes owned by UID/GID 1000 inside VM |
 
 ## Podman
 
-Rootless Podman uses user namespaces. When your host UID is 1000, it maps directly to `agent` inside the container — no mismatch, no permission issues.
+Rootless Podman is the preferred local container path. The `just` recipes pass:
 
-If your host UID is not 1000 (e.g., uid 1001), Podman maps it to uid 1000 inside the container via the subordinate UID range in `/etc/subuid`. Files written to a volume from inside the container will appear on the host as owned by your actual UID, not uid 1000.
+```bash
+--userns=keep-id:uid=1000,gid=1000
+```
+
+That asks Podman to keep the invoking host user mapped to UID/GID 1000 inside the container. The container process still runs as `agent`/1000, but files written through bind mounts should appear on the host as owned by the invoking user and group.
+
+This is explicit because rootless Podman user namespaces are powerful but not magic. Without a keep-id mapping, bind-mounted ownership can still be confusing, especially when your host UID is not 1000.
 
 The `just` recipes use `-v ... :z` (lowercase z) which applies SELinux relabeling on Fedora/RHEL. This is necessary for the container to read volumes on SELinux-enabled hosts.
 
+If the keep-id mapping causes trouble on a specific machine, disable or replace it with `PODMAN_USERNS`:
+
+```bash
+PODMAN_USERNS= just claude
+PODMAN_USERNS=auto just claude
+```
+
 If you see permission errors on a volume mount:
+
 ```bash
 # Check your subordinate UID range
 cat /etc/subuid | grep $(whoami)
 
-# Verify the container sees the right UID
-podman run --rm agent-sandbox id
+# Verify the container runs as agent/1000 inside
+podman run --rm --userns=keep-id:uid=1000,gid=1000 agent-sandbox id
 ```
 
 ## Docker
 
-Docker does not remap UIDs by default. Files created inside the container on a bind-mounted volume will be owned by uid 1000 on the host, regardless of who is running the `docker` command.
+Docker does not remap UIDs by default. Files created inside the container on a bind-mounted volume may appear as UID/GID 1000 on the host unless the host user is also UID/GID 1000.
 
-If you're running Docker as a non-root user (via the `docker` group), uid 1000 on the container maps to uid 1000 on the host — which may or may not be your user.
+The default Docker recipes keep the image behavior the same as Podman: the container runs as `agent`/1000. For a Docker-local compatibility image whose `agent` user matches your host UID/GID, run:
 
-To run as a specific UID:
 ```bash
-docker run -it --rm --user $(id -u):$(id -g) agent-sandbox
+just docker-build-user
+just docker-claude
 ```
 
-Note: running as a non-1000 UID will break paths that are hardcoded to `/home/agent` inside the image. Only use this if you understand the implications.
+That rebuilds the image with `AGENT_UID="$(id -u)"` and `AGENT_GID="$(id -g)"`, overwriting the local `IMAGE:IMAGE_TAG` tag so the Docker recipes use it automatically. It is a convenience path for Docker users, not the default published-image contract.
+
+For one-off Docker runs without rebuilding, the best-effort option is:
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/home/agent \
+  agent-sandbox
+```
+
+The caveat is that a non-1000 numeric user may not match `/etc/passwd` entries in the image, and it can interact badly with `/home/agent` ownership. Rebuilding with `just docker-build-user` is usually cleaner for Docker if UID/GID 1000 does not match your host account.
 
 ## microsandbox
 
-microsandbox runs inside a microVM. The VM has its own kernel, user space, and uid namespace — separate from the host entirely. The `agent` user (uid 1000) inside the VM does not correspond to any host UID.
+microsandbox runs inside a microVM. The VM has its own kernel, user space, and UID namespace, separate from the host. The `agent` user (UID/GID 1000 by default) inside the VM does not correspond directly to any host UID.
 
-Files on volumes mounted into the VM (`-v host-path:/home/agent`) will be owned by uid 1000 from the VM's perspective. On the host, they'll appear owned by whatever UID the msb daemon uses when writing files.
+Files on volumes mounted into the VM (`-v host-path:/home/agent`) will be owned by UID/GID 1000 from the VM's perspective. On the host, they appear according to how the msb runtime writes them.
 
 The `--user` flag is available in msb but typically not needed — the default `agent` user is set in the image's entrypoint.
 
 ## When UID mapping matters
 
-- **Bind mounts with host files:** If you mount `~/.gitconfig` read-only into the container, the file must be readable by uid 1000. With rootless Podman this is automatic; with Docker you may need to `chmod o+r` the file.
-- **Shared volumes between host and container:** Files written by the container will be owned by uid 1000 on Docker hosts. Run `chown -R $(id -u):$(id -g) ./home` after init if needed.
-- **CI environments:** Many CI runners use uid != 1000. With Podman this usually works via user namespace mapping. With Docker, the files in volumes may end up owned by uid 1000 which the CI runner cannot write to without explicit `chown` steps.
-- **`just init-home`:** Runs a throwaway container to copy files. On Docker hosts, the extracted `home/` directory will be owned by uid 1000. On rootless Podman hosts, files will be owned by your UID.
+- **Bind mounts with host files:** If you mount `~/.gitconfig` read-only into the container, it must be readable by the mapped container user. The Podman keep-id mapping is designed to make this natural.
+- **Shared volumes between host and container:** Files written by the container should be owned by your user with the default Podman recipes. With default Docker, they may be owned by UID/GID 1000.
+- **CI environments:** Many CI runners use UID/GID values other than 1000. Podman can use the keep-id mapping; Docker often needs explicit `chown`, `--user`, or a rebuilt image.
+- **`just init-home`:** Runs a throwaway container to copy files. On Docker hosts, the extracted `home/` directory may be owned by UID/GID 1000 unless you use a UID/GID-compatible image.

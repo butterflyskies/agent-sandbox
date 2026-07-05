@@ -34,6 +34,27 @@ build:
         --file Containerfile \
         --layers .
 
+# Build a Docker-local image whose agent uid/gid matches the invoking user.
+# This overwrites {{image}}:{{tag}} so docker-* recipes use it automatically.
+docker-build-user:
+    #!/bin/bash
+    set -euo pipefail
+    BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    GIT_SHA=$(git rev-parse HEAD)
+    if [[ -n "$(git status --porcelain)" ]]; then
+        GIT_SHA="${GIT_SHA}-dirty"
+    fi
+    IMAGE_VERSION="{{tag}}-uid$(id -u)-gid$(id -g)"
+    docker build \
+        --tag {{image}}:{{tag}} \
+        --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
+        --build-arg BUILD_DATE="${BUILD_DATE}" \
+        --build-arg GIT_SHA="${GIT_SHA}" \
+        --build-arg AGENT_UID="$(id -u)" \
+        --build-arg AGENT_GID="$(id -g)" \
+        --file Containerfile \
+        .
+
 # Tag and push to registry
 push:
     {{runtime}} tag {{image}}:{{tag}} {{registry}}/{{image}}:{{tag}}
@@ -88,7 +109,18 @@ init-home target="./home":
     if [[ "{{runtime}}" == "msb" ]]; then
         msb run --volume "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /home/agent/. /mnt/'
     else
-        {{runtime}} run --rm -v "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /home/agent/. /mnt/'
+        RUNTIME="{{runtime}}"
+        RUN_ARGS=(--rm)
+        VOLUME_SPEC="$TARGET:/mnt"
+        if [[ "$RUNTIME" == "podman" ]]; then
+            PODMAN_USERNS="${PODMAN_USERNS-keep-id:uid=1000,gid=1000}"
+            if [[ -n "$PODMAN_USERNS" ]]; then
+                RUN_ARGS+=(--userns "$PODMAN_USERNS")
+            fi
+            VOLUME_SPEC="$TARGET:/mnt:z"
+        fi
+        RUN_ARGS+=(-v "$VOLUME_SPEC")
+        "$RUNTIME" run "${RUN_ARGS[@]}" "{{image}}:{{tag}}" sh -lc 'cp -a /home/agent/. /mnt/'
     fi
     echo ""
     echo "Done. Full home directory extracted to $TARGET"
@@ -129,7 +161,7 @@ shell:
     set -euo pipefail
     export ROOT_DIR="{{justfile_directory()}}"
     source run/common.sh
-    sandbox_exec zsh
+    sandbox_exec shell
 
 # Run Claude Code via microsandbox (public-only network)
 msb-claude *args:
@@ -267,4 +299,8 @@ docker-shell:
     export CONTAINER_RUNTIME=docker
     export ROOT_DIR="{{justfile_directory()}}"
     source run/common.sh
-    sandbox_exec zsh
+    sandbox_exec shell
+
+# Build and run basic Podman smoke checks
+smoke:
+    ./scripts/smoke.sh

@@ -1,11 +1,11 @@
 # agent-sandbox — OCI image for running AI coding agents in microsandbox
 #
 # Design:
-#   - Claude Code (native binary) is the default entrypoint
+#   - A small zsh dispatcher defaults to Claude Code when no command is given
 #   - Also ships: opencode, codex, gemini CLI, pi-agent-rust, microsandbox
-#   - zsh available via `podman run --entrypoint zsh`
+#   - zsh available via `podman run IMAGE shell` or `podman run IMAGE zsh`
 #   - No credentials baked in — mount them at runtime
-#   - Single non-root user (agent), no SSH daemon
+#   - Single non-root user (agent; UID/GID 1000 by default), no SSH daemon
 #   - All tool downloads are pinned to specific versions with SHA256 verification
 #
 # Build:
@@ -149,6 +149,8 @@ ARG AWSCLI_VERSION AWSCLI_SHA256
 ARG IMAGE_VERSION=dev
 ARG BUILD_DATE=unknown
 ARG GIT_SHA=unknown
+ARG AGENT_UID=1000
+ARG AGENT_GID=1000
 
 LABEL org.opencontainers.image.title="agent-sandbox" \
       org.opencontainers.image.description="AI coding agent sandbox — polyglot dev environment for coding agents" \
@@ -254,8 +256,8 @@ RUN apt-get update \
     # --- user setup ---
     && userdel -r ubuntu 2>/dev/null || true \
     && groupdel ubuntu 2>/dev/null || true \
-    && groupadd -g 1000 agent \
-    && useradd -m -u 1000 -g agent -s /bin/zsh agent \
+    && groupadd -o -g "${AGENT_GID}" agent \
+    && useradd -m -o -u "${AGENT_UID}" -g agent -s /bin/zsh agent \
     && usermod -aG sudo agent \
     && echo 'agent ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/agent \
     && chmod 440 /etc/sudoers.d/agent \
@@ -360,8 +362,10 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
 # verifies the binary SHA256 from a manifest before execution. The script
 # itself is snapshotted at build time; Claude Code self-updates at runtime.
 # ---------------------------------------------------------------------------
+COPY scripts/agent-entrypoint /usr/local/bin/agent-entrypoint
 COPY scripts/ /tmp/scripts/
-RUN chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
+RUN chmod 0755 /usr/local/bin/agent-entrypoint \
+    && chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
     && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
     && su - agent -c "bash /tmp/scripts/install-tools.sh" \
     && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
@@ -386,5 +390,5 @@ WORKDIR /home/agent
 #   /home/agent/.gitconfig   git identity
 #   /home/agent/.ssh         SSH keys
 
-ENTRYPOINT ["claude"]
+ENTRYPOINT ["/usr/local/bin/agent-entrypoint"]
 CMD []

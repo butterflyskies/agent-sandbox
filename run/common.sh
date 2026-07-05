@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared setup for run scripts. Source this from bash, don't execute it.
 # Provides: ROOT_DIR, IMAGE, HOME_VOL, RUNTIME, RUNTIME_ARGS array
 #
@@ -5,6 +6,7 @@
 #   CONTAINER_RUNTIME    podman (default), docker, or msb
 #   IMAGE                image name (default: agent-sandbox)
 #   HOME_VOL             persistent home directory path (optional; ephemeral if unset/missing)
+#   PODMAN_USERNS        podman --userns value (default: keep-id:uid=1000,gid=1000; empty disables)
 #   MSB_CPUS             override CPU count for msb (default: nproc/2, min 2)
 #   MSB_MEMORY           override memory for msb (default: MemTotal/2, min 2G)
 #   MSB_NAME             sandbox name for msb (default: agent-sandbox); enables persistence/exec
@@ -18,6 +20,7 @@ ROOT_DIR="${ROOT_DIR:-$(dirname "$SCRIPT_DIR")}"
 RUNTIME="${CONTAINER_RUNTIME:-podman}"
 IMAGE="${IMAGE:-agent-sandbox}"
 HOME_VOL="${HOME_VOL:-${ROOT_DIR}/home}"
+PODMAN_USERNS="${PODMAN_USERNS-keep-id:uid=1000,gid=1000}"
 
 # API keys — forward all provider keys so any agent works from any entry point.
 declare -A API_KEY_HOSTS=(
@@ -84,28 +87,52 @@ if [[ "$RUNTIME" == "msb" ]]; then
     if [[ -d "$HOME_VOL" ]]; then
         RUNTIME_ARGS+=(-v "${HOME_VOL}:/home/agent")
     fi
-else
+elif [[ "$RUNTIME" == "podman" ]]; then
     RUNTIME_ARGS=(
         -it
         --cap-drop=ALL
         --security-opt=no-new-privileges
         --read-only
-        --tmpfs /tmp:rw,noexec,nosuid
-        --tmpfs /var/tmp:rw,noexec,nosuid
-        --tmpfs /run:rw,noexec,nosuid
+        --tmpfs "/tmp:rw,noexec,nosuid"
+        --tmpfs "/var/tmp:rw,noexec,nosuid"
+        --tmpfs "/run:rw,noexec,nosuid"
+        --hostname agent-sandbox
+        "${API_KEY_ARGS[@]}"
+    )
+    if [[ -n "$PODMAN_USERNS" ]]; then
+        RUNTIME_ARGS+=(--userns "$PODMAN_USERNS")
+    fi
+    if [[ -d "$HOME_VOL" ]]; then
+        RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent:z")
+    fi
+elif [[ "$RUNTIME" == "docker" ]]; then
+    RUNTIME_ARGS=(
+        -it
+        --cap-drop=ALL
+        --security-opt=no-new-privileges
+        --read-only
+        --tmpfs "/tmp:rw,noexec,nosuid"
+        --tmpfs "/var/tmp:rw,noexec,nosuid"
+        --tmpfs "/run:rw,noexec,nosuid"
         --hostname agent-sandbox
         "${API_KEY_ARGS[@]}"
     )
     if [[ -d "$HOME_VOL" ]]; then
-        RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent:z")
+        RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent")
     fi
+else
+    echo "Unsupported CONTAINER_RUNTIME: $RUNTIME" >&2
+    exit 1
 fi
 
 sandbox_exec() {
     local cmd="$1"; shift
     if [[ "$RUNTIME" == "msb" ]]; then
+        if [[ "$cmd" == "shell" ]]; then
+            cmd="zsh"
+        fi
         exec msb run "${RUNTIME_ARGS[@]}" --entrypoint "$cmd" "$IMAGE" "$@"
     else
-        exec "$RUNTIME" run "${RUNTIME_ARGS[@]}" --entrypoint "$cmd" "$IMAGE" "$@"
+        exec "$RUNTIME" run "${RUNTIME_ARGS[@]}" "$IMAGE" "$cmd" "$@"
     fi
 }
