@@ -23,7 +23,7 @@ download_and_hash() {
     local url="$1"
     local tmp
     tmp=$(mktemp)
-    trap "rm -f '$tmp'" RETURN
+    trap 'rm -f "$tmp"' RETURN
     if ! curl -fsSL -o "$tmp" "$url"; then
         echo "FAILED (download error)" >&2
         return 1
@@ -87,7 +87,7 @@ for name in RUSTUP UV CHEZMOI ZOXIDE OPENCODE PI_AGENT MSB AWSCLI; do
     if [[ ${#filter[@]} -gt 0 ]]; then
         match=false
         for f in "${filter[@]}"; do
-            local f_norm="${f//-/_}"
+            f_norm="${f//-/_}"
             if [[ "${name,,}" == "${f_norm,,}" ]]; then
                 match=true
                 break
