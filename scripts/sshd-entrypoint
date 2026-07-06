@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOSTKEY_DIR=/etc/ssh/hostkeys
+
+generate_host_key() {
+    local type="$1"
+    local path="$2"
+
+    if [[ ! -f "$path" ]]; then
+        ssh-keygen -q -N "" -t "$type" -f "$path"
+    fi
+}
+
+if [[ "$#" -gt 0 ]]; then
+    export HOME=/home/agent
+    export USER=agent
+    export LOGNAME=agent
+    exec setpriv --reuid=agent --regid=agent --init-groups /usr/local/bin/agent-entrypoint "$@"
+fi
+
+/usr/local/bin/agent-home-bootstrap
+
+mkdir -p "$HOSTKEY_DIR"
+chmod 0700 "$HOSTKEY_DIR"
+
+generate_host_key ed25519 "$HOSTKEY_DIR/ssh_host_ed25519_key"
+generate_host_key rsa "$HOSTKEY_DIR/ssh_host_rsa_key"
+
+chmod 0600 "$HOSTKEY_DIR"/ssh_host_*_key
+chmod 0644 "$HOSTKEY_DIR"/ssh_host_*_key.pub
+
+exec /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config

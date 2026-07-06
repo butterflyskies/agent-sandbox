@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+template="${AGENT_HOME_TEMPLATE:-/opt/agent-home-template}"
+home_dir="${HOME:-}"
+enabled="${AGENT_HOME_BOOTSTRAP:-1}"
+
+if [[ "$enabled" == "0" || "$enabled" == "false" ]]; then
+    exit 0
+fi
+
+if [[ -z "$home_dir" || ! -d "$template" || ! -d "$home_dir" ]]; then
+    exit 0
+fi
+
+if ! command -v rsync >/dev/null 2>&1; then
+    exit 0
+fi
+
+if ! mkdir -p "$home_dir/.agent-sandbox" 2>/dev/null; then
+    exit 0
+fi
+
+if ! rsync -a --ignore-existing --exclude='.agent-sandbox/' --exclude='.cache/' "$template"/ "$home_dir"/; then
+    echo "agent-home-bootstrap: warning: could not seed $home_dir from $template" >&2
+fi
+
+if [[ -f "$template/.tool-versions" ]]; then
+    if ! cp -f "$template/.tool-versions" "$home_dir/.tool-versions"; then
+        echo "agent-home-bootstrap: warning: could not refresh $home_dir/.tool-versions" >&2
+    fi
+fi

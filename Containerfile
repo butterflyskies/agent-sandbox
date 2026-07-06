@@ -365,8 +365,9 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
 # verifies the binary SHA256 from the release manifest before execution.
 # ---------------------------------------------------------------------------
 COPY scripts/agent-entrypoint /usr/local/bin/agent-entrypoint
+COPY scripts/agent-home-bootstrap /usr/local/bin/agent-home-bootstrap
 COPY scripts/ /tmp/scripts/
-RUN chmod 0755 /usr/local/bin/agent-entrypoint \
+RUN chmod 0755 /usr/local/bin/agent-entrypoint /usr/local/bin/agent-home-bootstrap \
     && chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
     && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
     && su - agent -c "bash /tmp/scripts/install-tools.sh" \

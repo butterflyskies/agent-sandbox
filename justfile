@@ -8,6 +8,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 image    := env("IMAGE", "agent-sandbox")
+image_sshd := env("IMAGE_SSHD", "agent-sandbox-sshd")
 tag      := env("IMAGE_TAG", "latest")
 runtime  := env("CONTAINER_RUNTIME", "podman")
 registry := env("REGISTRY", "ghcr.io/butterflyskies")
@@ -55,10 +56,27 @@ docker-build-user:
         --file Containerfile \
         .
 
+# Build the SSH-enabled image variant. Override BASE_IMAGE to build from a
+# registry image instead of the local {{image}}:{{tag}} base.
+build-sshd:
+    #!/bin/bash
+    set -euo pipefail
+    BASE_IMAGE="${BASE_IMAGE:-{{image}}:{{tag}}}"
+    {{runtime}} build \
+        --tag {{image_sshd}}:{{tag}} \
+        --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+        --file Containerfile.sshd \
+        --layers .
+
 # Tag and push to registry
 push:
     {{runtime}} tag {{image}}:{{tag}} {{registry}}/{{image}}:{{tag}}
     {{runtime}} push {{registry}}/{{image}}:{{tag}}
+
+# Tag and push the SSH-enabled image variant to registry
+push-sshd:
+    {{runtime}} tag {{image_sshd}}:{{tag}} {{registry}}/{{image_sshd}}:{{tag}}
+    {{runtime}} push {{registry}}/{{image_sshd}}:{{tag}}
 
 # Build with CalVer labels, tag :latest and :YYYYMMDD, push both to registry
 release:

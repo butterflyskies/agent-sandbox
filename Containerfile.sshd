@@ -1,0 +1,28 @@
+ARG BASE_IMAGE=agent-sandbox:latest
+FROM ${BASE_IMAGE}
+
+USER root
+
+ENV HOME=/home/agent
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssh-server util-linux \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /run/sshd /etc/ssh/authorized_keys /etc/ssh/hostkeys \
+    && chown root:root /run/sshd /etc/ssh/authorized_keys /etc/ssh/hostkeys \
+    && chmod 0755 /run/sshd /etc/ssh/authorized_keys \
+    && chmod 0700 /etc/ssh/hostkeys \
+    && passwd -d agent
+
+COPY config/sshd_config /etc/ssh/sshd_config
+COPY scripts/sshd-entrypoint /usr/local/bin/sshd-entrypoint
+RUN chmod 0644 /etc/ssh/sshd_config \
+    && chmod 0755 /usr/local/bin/sshd-entrypoint
+
+WORKDIR /home/agent
+EXPOSE 2222
+
+ENTRYPOINT ["/usr/local/bin/sshd-entrypoint"]
+CMD []

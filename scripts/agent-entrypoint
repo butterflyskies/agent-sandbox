@@ -2,39 +2,7 @@
 emulate -L zsh
 set -euo pipefail
 
-bootstrap_home() {
-  local template="${AGENT_HOME_TEMPLATE:-/opt/agent-home-template}"
-  local home_dir="${HOME:-}"
-  local enabled="${AGENT_HOME_BOOTSTRAP:-1}"
-
-  if [[ "$enabled" == "0" || "$enabled" == "false" ]]; then
-    return
-  fi
-
-  if [[ -z "$home_dir" || ! -d "$template" || ! -d "$home_dir" ]]; then
-    return
-  fi
-
-  if ! command -v rsync >/dev/null 2>&1; then
-    return
-  fi
-
-  if ! mkdir -p "$home_dir/.agent-sandbox" 2>/dev/null; then
-    return
-  fi
-
-  if ! rsync -a --ignore-existing --exclude='.agent-sandbox/' --exclude='.cache/' "$template"/ "$home_dir"/; then
-    print -u2 "agent-entrypoint: warning: could not seed $home_dir from $template"
-  fi
-
-  if [[ -f "$template/.tool-versions" ]]; then
-    if ! cp -f "$template/.tool-versions" "$home_dir/.tool-versions"; then
-      print -u2 "agent-entrypoint: warning: could not refresh $home_dir/.tool-versions"
-    fi
-  fi
-}
-
-bootstrap_home
+/usr/local/bin/agent-home-bootstrap
 
 if (( $# == 0 )); then
   exec claude
