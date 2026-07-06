@@ -172,6 +172,7 @@ ENV LANG=en_US.UTF-8 \
     CARGO_HOME=/opt/cargo \
     RUSTUP_HOME=/opt/rustup \
     ASDF_DATA_DIR=/home/agent/.asdf \
+    NPM_CONFIG_PREFIX=/home/agent/.npm-global \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     EDITOR=nvim \
     VISUAL=nvim \
@@ -369,6 +370,10 @@ RUN chmod 0755 /usr/local/bin/agent-entrypoint \
     && chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
     && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
     && su - agent -c "bash /tmp/scripts/install-tools.sh" \
+    && rm -rf /home/agent/.cache/* /home/agent/.npm \
+    && mkdir -p /opt/agent-home-template /home/agent/.cache \
+    && rsync -a --delete --exclude='.cache/' /home/agent/ /opt/agent-home-template/ \
+    && chown -R agent:agent /home/agent /opt/agent-home-template \
     && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
 
 # ---------------------------------------------------------------------------

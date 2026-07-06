@@ -2,6 +2,8 @@
 
 agent-sandbox supports three persistence modes. Choose based on how much state you need to survive between runs and how portable it needs to be.
 
+The image carries a staged home template at `/opt/agent-home-template`. That template includes the default dotfiles, asdf runtimes under `.asdf`, npm globals under `.npm-global`, and other writable home state. Cargo-installed tools live under `/opt/cargo`.
+
 ## Mode 1: Built-in (no setup)
 
 No volume flag, no `init`. State lives inside the sandbox or container.
@@ -36,9 +38,9 @@ podman start -ai <container-id>
 
 The justfile doesn't manage named containers — that's a manual workflow.
 
-## Mode 2: External volume — full image home (`just init-home`)
+## Mode 2: External volume — image home template (`just init-home`)
 
-Extracts the complete `/home/agent` directory from the image into a local path. Every tool, shell config, and PATH setup from the image lands in the volume.
+Extracts `/opt/agent-home-template` from the image into a local path. This includes the image's default shell config, `.tool-versions`, asdf runtimes, npm globals, Claude launcher files, and other home-level setup. Replacing `/home/agent` with a volume no longer hides those staged tools because the entrypoint can seed them from the template.
 
 ```bash
 just init-home               # Extracts to ./home
@@ -49,7 +51,7 @@ The extraction uses a throwaway container:
 
 ```bash
 # What init-home does under the hood:
-podman run --rm -v ./home:/mnt agent-sandbox sh -lc 'cp -a /home/agent/. /mnt/'
+podman run --rm -v ./home:/mnt agent-sandbox sh -lc 'cp -a /opt/agent-home-template/. /mnt/'
 ```
 
 The image defaults to `agent` UID/GID 1000. The Podman recipes use `--userns=keep-id:uid=1000,gid=1000 --user agent`, so files copied into a bind mount should appear on the host as your invoking user while the container still runs as `agent`. Set `PODMAN_USERNS=` to disable that mapping if a specific host requires it.
@@ -71,9 +73,21 @@ HOME_VOL=./home just msb-claude
 
 When `HOME_VOL` points to an existing directory, the justfile mounts it at `/home/agent`. The container is run with `--rm` so the container itself is ephemeral — all state lives in the volume.
 
+### Automatic first-start seeding
+
+The entrypoint seeds `$HOME` from `/opt/agent-home-template` on startup. It uses `rsync --ignore-existing`, so missing default files and missing tool-version directories are copied into an empty or partial mounted home, while files you already created in the volume win. If the home directory is not writable, the bootstrap is skipped.
+
+The home-level `$HOME/.tool-versions` file is image-owned and is refreshed from the template on startup. That keeps asdf pinned to versions actually installed by the current image after upgrades. Put project-specific `.tool-versions` files in project directories when you need per-repo overrides, or disable the bootstrap if you fully manage the home yourself.
+
+Disable this behavior with:
+
+```bash
+AGENT_HOME_BOOTSTRAP=0 just claude
+```
+
 ### PATH wiring
 
-Tools installed via asdf (Node, Python, Go, etc.) are wired via `/etc/profile.d/agent-sandbox-paths.sh` in the image. This file adds asdf shims and tool paths to `PATH` for every shell session, regardless of whether you're using a volume or the built-in home. You don't need to replicate PATH setup in the volume.
+Tools installed via asdf (Node, Python, Go, etc.) are wired through `$HOME/.asdf`; npm globals are under `$HOME/.npm-global`; cargo tools are under `/opt/cargo`. `/etc/profile.d/agent-sandbox-paths.sh` adds these paths for login shells, and the image `PATH` includes them for direct entrypoint commands. With a writable mounted home, agents can still run `asdf install ...` or `npm install -g ...` and have those additions persist in the volume.
 
 ## Mode 3: Skeleton volume (`just init`)
 
@@ -107,7 +121,7 @@ Use this when you want to manage your dotfiles with chezmoi, symlinks, or your o
 |------|---------|---------------------|---------------|-----------|
 | Built-in (msb) | `just msb-claude` | No (microVM persists) | Inside microVM | `just msb-reset` |
 | Built-in (container) | `just claude` | No (unless `--rm` added) | Inside container | Remove container |
-| Full volume | `HOME_VOL=./home just claude` | Yes (`--rm` added) | `./home` directory | Delete files |
+| Template volume | `HOME_VOL=./home just claude` | Yes (`--rm` added) | `./home` directory | Delete files |
 | Skeleton volume | `HOME_VOL=./home just claude` | Yes (`--rm` added) | `./home` directory | Delete files |
 
 ## Bringing your own home directory
@@ -118,4 +132,4 @@ Any existing directory works as `HOME_VOL`. If it was created outside `just init
 HOME_VOL=/mnt/nas/agent-home just claude
 ```
 
-Files in the volume overlay the image's `/home/agent`. If a path exists in both, the volume wins.
+Files in the volume overlay the image's `/home/agent`. If a path exists in both, the volume wins. Missing files are seeded from `/opt/agent-home-template` unless `AGENT_HOME_BOOTSTRAP=0` is set.

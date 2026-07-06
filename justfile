@@ -93,7 +93,7 @@ release:
 init:
     ./skeleton/init.sh
 
-# Extract the full built-in home directory from the image into a local directory
+# Extract the built-in home template from the image into a local directory
 # Usage: just init-home [target]   (default target: ./home)
 init-home target="./home":
     #!/bin/bash
@@ -105,9 +105,9 @@ init-home target="./home":
         exit 1
     fi
     mkdir -p "$TARGET"
-    echo "Extracting /home/agent from {{image}}:{{tag}} into $TARGET ..."
+    echo "Extracting /opt/agent-home-template from {{image}}:{{tag}} into $TARGET ..."
     if [[ "{{runtime}}" == "msb" ]]; then
-        msb run --volume "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /home/agent/. /mnt/'
+        msb run --volume "$TARGET:/mnt" --entrypoint sh "{{image}}:{{tag}}" -c 'cp -a /opt/agent-home-template/. /mnt/'
     else
         RUNTIME="{{runtime}}"
         RUN_ARGS=(--rm)
@@ -120,10 +120,10 @@ init-home target="./home":
             VOLUME_SPEC="$TARGET:/mnt:z"
         fi
         RUN_ARGS+=(-v "$VOLUME_SPEC")
-        "$RUNTIME" run "${RUN_ARGS[@]}" "{{image}}:{{tag}}" sh -lc 'cp -a /home/agent/. /mnt/'
+        "$RUNTIME" run "${RUN_ARGS[@]}" "{{image}}:{{tag}}" sh -lc 'cp -a /opt/agent-home-template/. /mnt/'
     fi
     echo ""
-    echo "Done. Full home directory extracted to $TARGET"
+    echo "Done. Home template extracted to $TARGET"
     echo ""
     echo "Next steps:"
     echo "  Edit $TARGET/.gitconfig        — set git identity"

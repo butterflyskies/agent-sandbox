@@ -4,8 +4,8 @@
 set -euo pipefail
 
 export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
-export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-mkdir -p "$NPM_CONFIG_PREFIX" "$HOME/.local/bin"
+export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.npm-global}"
+mkdir -p "$ASDF_DATA_DIR" "$NPM_CONFIG_PREFIX" "$HOME/.local/bin"
 
 # ==========================================================================
 # Pinned runtime versions (see VERSIONS.md for validation methodology)

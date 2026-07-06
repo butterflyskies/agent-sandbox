@@ -6,6 +6,8 @@
 #   CONTAINER_RUNTIME    podman (default), docker, or msb
 #   IMAGE                image name (default: agent-sandbox)
 #   HOME_VOL             persistent home directory path (optional; ephemeral if unset/missing)
+#   AGENT_HOME_BOOTSTRAP entrypoint home-template bootstrap toggle (optional; set 0 to disable)
+#   AGENT_HOME_TEMPLATE   entrypoint home-template path override (optional)
 #   PODMAN_USERNS        podman --userns value (default: keep-id:uid=1000,gid=1000; empty disables)
 #   MSB_CPUS             override CPU count for msb (default: nproc/2, min 2)
 #   MSB_MEMORY           override memory for msb (default: MemTotal/2, min 2G)
@@ -42,6 +44,13 @@ for _key in "${API_KEY_NAMES[@]}"; do
         fi
     else
         API_KEY_ARGS+=(-e "$_key")
+    fi
+done
+
+ENTRYPOINT_ENV_ARGS=()
+for _key in AGENT_HOME_BOOTSTRAP AGENT_HOME_TEMPLATE; do
+    if [[ "${!_key+x}" == "x" ]]; then
+        ENTRYPOINT_ENV_ARGS+=(-e "$_key")
     fi
 done
 
@@ -82,6 +91,7 @@ if [[ "$RUNTIME" == "msb" ]]; then
         --tmpfs /run
         --name "${MSB_NAME:-agent-sandbox}"
         "${API_KEY_ARGS[@]}"
+        "${ENTRYPOINT_ENV_ARGS[@]}"
     )
     # Only mount HOME_VOL if it exists or was explicitly set.
     if [[ -d "$HOME_VOL" ]]; then
@@ -98,6 +108,7 @@ elif [[ "$RUNTIME" == "podman" ]]; then
         --tmpfs "/run:rw,noexec,nosuid"
         --hostname agent-sandbox
         "${API_KEY_ARGS[@]}"
+        "${ENTRYPOINT_ENV_ARGS[@]}"
     )
     if [[ -n "$PODMAN_USERNS" ]]; then
         RUNTIME_ARGS+=(--userns "$PODMAN_USERNS" --user agent)
@@ -116,6 +127,7 @@ elif [[ "$RUNTIME" == "docker" ]]; then
         --tmpfs "/run:rw,noexec,nosuid"
         --hostname agent-sandbox
         "${API_KEY_ARGS[@]}"
+        "${ENTRYPOINT_ENV_ARGS[@]}"
     )
     if [[ -d "$HOME_VOL" ]]; then
         RUNTIME_ARGS+=(--rm -v "${HOME_VOL}:/home/agent")
