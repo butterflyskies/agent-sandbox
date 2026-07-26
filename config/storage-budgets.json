@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "measurements": {
+    "image_size_bytes": {
+      "max_bytes": null
+    },
+    "home_template_apparent_bytes": {
+      "max_bytes": null
+    },
+    "empty_persistent_home_apparent_bytes": {
+      "max_bytes": null
+    },
+    "per_seat_state_bytes": {
+      "max_bytes": null
+    },
+    "host_free_space_floor_bytes": {
+      "min_bytes": null
+    }
+  }
+}

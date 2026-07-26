@@ -365,8 +365,11 @@ RUN cp /tmp/config/zshrc /home/agent/.zshrc \
 # verifies the binary SHA256 from the release manifest before execution.
 # ---------------------------------------------------------------------------
 COPY scripts/agent-entrypoint /usr/local/bin/agent-entrypoint
+COPY scripts/storage-inventory.py /usr/local/bin/agent-storage-inventory
+COPY config/home-template-ownership.json config/storage-budgets.json /usr/share/agent-sandbox/
 COPY scripts/ /tmp/scripts/
 RUN chmod 0755 /usr/local/bin/agent-entrypoint \
+    && chmod 0755 /usr/local/bin/agent-storage-inventory \
     && chmod +x /tmp/scripts/*.sh /tmp/scripts/asdf-plugin-manager \
     && cp /tmp/scripts/asdf-plugin-manager /tmp/asdf-plugin-manager \
     && su - agent -c "bash /tmp/scripts/install-tools.sh" \
@@ -374,6 +377,12 @@ RUN chmod 0755 /usr/local/bin/agent-entrypoint \
     && mkdir -p /opt/agent-home-template /home/agent/.cache \
     && rsync -a --delete --exclude='.cache/' /home/agent/ /opt/agent-home-template/ \
     && chown -R agent:agent /home/agent /opt/agent-home-template \
+    && agent-storage-inventory \
+        --root /opt/agent-home-template \
+        --ownership-map /usr/share/agent-sandbox/home-template-ownership.json \
+        --budgets /usr/share/agent-sandbox/storage-budgets.json \
+        --output /usr/share/agent-sandbox/home-template-inventory.json \
+    && cat /usr/share/agent-sandbox/home-template-inventory.json \
     && rm -rf /tmp/scripts /tmp/asdf-plugin-manager
 
 # ---------------------------------------------------------------------------
