@@ -39,6 +39,9 @@ size for pull requests.
 
 Longest matching paths win. For example, `.config/starship.toml` is an
 image-owned default while the broader `.config` tree is construct-owned state.
+Likewise, Claude's native versioned executable under
+`.local/share/claude/versions` is image-owned software while other
+`.local/share` data remains construct-owned.
 
 ## Budget lifecycle
 

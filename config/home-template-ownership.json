@@ -15,6 +15,10 @@
       "owner": "image-owned-software"
     },
     {
+      "path": ".local/share/claude/versions",
+      "owner": "image-owned-software"
+    },
+    {
       "path": ".plugin-versions",
       "owner": "image-owned-default"
     },

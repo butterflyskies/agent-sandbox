@@ -148,6 +148,30 @@ class StorageInventoryTest(unittest.TestCase):
         self.assertIn("--output must be outside --root", result.stderr)
         self.assertFalse(output.exists())
 
+    def test_native_claude_binary_is_image_owned_but_other_local_data_is_state(self) -> None:
+        version_directory = (
+            self.tree / ".local" / "share" / "claude" / "versions" / "2.1.201"
+        )
+        version_directory.mkdir(parents=True)
+        (version_directory / "claude").write_bytes(b"binary")
+        preferences = self.tree / ".local" / "share" / "claude" / "preferences"
+        preferences.write_bytes(b"prefs")
+        self.ownership_map = REPO_ROOT / "config" / "home-template-ownership.json"
+        self.write_budgets(None)
+
+        result = self.run_inventory()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        paths = {item["path"]: item for item in json.loads(result.stdout)["paths"]}
+        self.assertEqual(
+            paths[".local/share/claude/versions"]["apparent_bytes"], len(b"binary")
+        )
+        self.assertEqual(
+            paths[".local/share/claude/versions"]["owner"], "image-owned-software"
+        )
+        self.assertEqual(paths[".local/share"]["apparent_bytes"], len(b"prefs"))
+        self.assertEqual(paths[".local/share"]["owner"], "construct-owned-state")
+
 
 if __name__ == "__main__":
     unittest.main()
