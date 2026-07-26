@@ -59,31 +59,31 @@ ARG ATUIN_VERSION=18.16.1
 
 # Runtime-stage: standalone tool versions + checksums (linux x86_64)
 # renovate: datasource=github-releases depName=astral-sh/uv
-ARG UV_VERSION=0.11.26
-ARG UV_SHA256=6426a73c3837e6e2483ee344cbc00f36394d179afcba6183cb77437e67db4af0
+ARG UV_VERSION=0.11.32
+ARG UV_SHA256=aab924fd522efd06f1c5f3b93a243864fc453132c94b2dc49f1371b528a4b967
 # renovate: datasource=github-releases depName=twpayne/chezmoi
-ARG CHEZMOI_VERSION=2.70.5
-ARG CHEZMOI_SHA256=da4f1346e3626c68cbe3620abc12134d886733420df92e32edb48d0406c7f9e5
+ARG CHEZMOI_VERSION=2.71.1
+ARG CHEZMOI_SHA256=37d22a4947134c3d6cb87d7a2be7caa63684a27d57e2999c86564126e79424ae
 # renovate: datasource=github-releases depName=ajeetdsouza/zoxide
 ARG ZOXIDE_VERSION=0.10.0
 ARG ZOXIDE_SHA256=2d93385b99f3e82cf2701609a1bffcad863fbeb75aa3fe7eb6be4d29be68b1ae
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION=1.17.13
-ARG OPENCODE_SHA256=157afa289d1a8d9372de0ce19ac726119b937a1f6b201808d46f06e4e59bb348
+ARG OPENCODE_VERSION=1.18.5
+ARG OPENCODE_SHA256=cd4a2557a3d6550f27cb5c0257ebe8d73388bb34beda8b6121e6428a74c1eae2
 # renovate: datasource=github-releases depName=Dicklesworthstone/pi_agent_rust
-ARG PI_AGENT_VERSION=0.1.18
-ARG PI_AGENT_SHA256=b14e27c072721941c956219f999e59d72693bbf4f91a7a2b9b4ba80b6f3da847
+ARG PI_AGENT_VERSION=0.1.22
+ARG PI_AGENT_SHA256=c6ddd5a81b7161e44467fb7093f3a31f7acea18bbc2eabe299daf0ce9a670722
 # renovate: datasource=github-releases depName=superradcompany/microsandbox
-ARG MSB_VERSION=0.6.4
-ARG MSB_SHA256=ccefa5a0b7663a64825aada69182af5e6ad7cf1fdd6c75f4f8777b361970b328
+ARG MSB_VERSION=0.6.7
+ARG MSB_SHA256=5cae2e1d67b976a659baea73f42bd853611daf92e4f8187574db0689ad07e828
 # renovate: datasource=github-tags depName=aws/aws-cli
-ARG AWSCLI_VERSION=2.35.15
-ARG AWSCLI_SHA256=50692e3e2a606007d7789b5a307dca41452a965dea1f3d3687972da6e5adc86c
+ARG AWSCLI_VERSION=2.36.8
+ARG AWSCLI_SHA256=829a2bbad5b4821a8d006a133c34fa5ce2f362ae003ac39aa0865a6d1e1711f2
 
 # =============================================================================
 # Stage 1: cargo binary builder
 # =============================================================================
-FROM ubuntu:26.04@sha256:b7f48194d4d8b763a478a621cdc81c27be222ba2206ca3ca6bc42b49685f3d9e AS builder
+FROM ubuntu:26.04@sha256:3131b4cc82a783df6c9df078f86e01819a13594b865c2cad47bd1bca2b7063bb AS builder
 
 ARG RUSTUP_VERSION RUSTUP_SHA256
 ARG JUST_VERSION HYPERFINE_VERSION TOKEI_VERSION BOTTOM_VERSION DU_DUST_VERSION
@@ -136,7 +136,7 @@ RUN --mount=type=cache,target=/opt/cargo/registry,sharing=locked \
 # =============================================================================
 # Stage 2: runtime image
 # =============================================================================
-FROM ubuntu:26.04@sha256:b7f48194d4d8b763a478a621cdc81c27be222ba2206ca3ca6bc42b49685f3d9e
+FROM ubuntu:26.04@sha256:3131b4cc82a783df6c9df078f86e01819a13594b865c2cad47bd1bca2b7063bb
 
 ARG UV_VERSION UV_SHA256
 ARG CHEZMOI_VERSION CHEZMOI_SHA256
