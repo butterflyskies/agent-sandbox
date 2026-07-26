@@ -49,7 +49,10 @@ done
 
 ENTRYPOINT_ENV_ARGS=()
 for _key in AGENT_HOME_BOOTSTRAP AGENT_HOME_TEMPLATE; do
-    if [[ "${!_key+x}" == "x" ]]; then
+    [[ "${!_key+x}" == "x" ]] || continue
+    if [[ "$RUNTIME" == "msb" ]]; then
+        ENTRYPOINT_ENV_ARGS+=(-e "${_key}=${!_key}")
+    else
         ENTRYPOINT_ENV_ARGS+=(-e "$_key")
     fi
 done
