@@ -19,8 +19,13 @@ if [[ "$#" -gt 0 ]]; then
     exec setpriv --reuid=agent --regid=agent --init-groups /usr/local/bin/agent-entrypoint "$@"
 fi
 
-/usr/local/bin/agent-home-bootstrap
+# Bootstrap the persistent home as its owner. Running this as root would leave
+# helper-created paths (for example .agent-sandbox/) owned by root.
+setpriv --reuid=agent --regid=agent --init-groups \
+    /usr/local/bin/agent-home-bootstrap
 
+mkdir -p /run/sshd
+chmod 0755 /run/sshd
 mkdir -p "$HOSTKEY_DIR"
 chmod 0700 "$HOSTKEY_DIR"
 

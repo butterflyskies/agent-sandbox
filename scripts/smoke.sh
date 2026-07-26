@@ -61,12 +61,7 @@ podman run --rm "$IMAGE_SSHD_REF" true
 podman run --rm "$IMAGE_SSHD_REF" shell -lc 'echo sshd-shell-ok'
 podman run --rm "$IMAGE_SSHD_REF" sh -lc 'test "$(id -u)" -eq 1000'
 
-cid="$(podman run -d -p 2222:2222 "$IMAGE_SSHD_REF")"
-trap 'podman rm -f "$cid" >/dev/null 2>&1 || true; rm -rf "$tmp" "$home_tmp"' EXIT
-sleep 2
-podman logs "$cid"
-podman exec "$cid" test -f /etc/ssh/hostkeys/ssh_host_ed25519_key
-podman exec "$cid" test -f /etc/ssh/hostkeys/ssh_host_rsa_key
-podman exec "$cid" sh -lc 'passwd -S agent | grep -q " NP "'
+CONTAINER_RUNTIME=podman IMAGE_SSHD_REF="$IMAGE_SSHD_REF" \
+    ./scripts/sshd-smoke.sh
 
 echo "Podman smoke checks passed"

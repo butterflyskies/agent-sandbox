@@ -17,6 +17,14 @@ AllowUsers agent
 AuthorizedKeysFile /etc/ssh/authorized_keys/%u
 
 UsePAM no
+# Non-interactive remote commands do not source .zshrc. Keep the tool
+# environment aligned with the base image so `ssh host codex`, editor probes,
+# and asdf-managed commands work as well as interactive sessions.
+SetEnv ASDF_DATA_DIR=/home/agent/.asdf
+SetEnv CARGO_HOME=/opt/cargo
+SetEnv NPM_CONFIG_PREFIX=/home/agent/.npm-global
+SetEnv RUSTUP_HOME=/opt/rustup
+SetEnv PATH=/home/agent/.local/bin:/home/agent/.cargo/bin:/home/agent/.asdf/shims:/home/agent/.asdf/bin:/home/agent/.npm-global/bin:/home/agent/go/bin:/opt/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 X11Forwarding no
 AllowTcpForwarding yes
 GatewayPorts no

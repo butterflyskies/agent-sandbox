@@ -33,6 +33,37 @@ ghcr.io/butterflyskies/agent-sandbox-sshd:latest
 
 The SSH variant runs as root so `sshd` can accept SSH connections and start sessions as `agent`. This root runtime is isolated to the SSH image variant.
 
+This means the SSH variant is **not compatible with Kubernetes Restricted Pod
+Security as-is**: the daemon must start as UID 0 and retain the ability to call
+`setuid(2)` and `setgid(2)` when it creates an `agent` session. If your workload
+security context drops capabilities, do not drop `CAP_SETUID` or `CAP_SETGID`.
+Validate the complete capability set against the exact OpenSSH package and
+runtime you deploy; do not infer successful session spawning from a healthy
+listening socket alone.
+
+The supported full-development baseline (including the image's intentional
+passwordless sudo) is:
+
+```yaml
+securityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  runAsNonRoot: false
+  allowPrivilegeEscalation: true
+```
+
+Leave the runtime's default capability set intact unless a reduced set has been
+validated with an authenticated SSH session and a PTY, not merely a listening
+port. In particular, a blanket `capabilities.drop: [ALL]` is unsupported.
+
+`allowPrivilegeEscalation: false` does not prevent the root daemon from
+dropping an SSH child to the existing `agent` account, so it can be used when
+SSH sessions must remain non-root. It also prevents the base image's intentional
+setuid `sudo` from elevating `agent` back to root. If daily use requires
+passwordless sudo, the workload must instead allow privilege escalation.
+Choose that policy explicitly; container and cluster policy remain the security
+boundary.
+
 Invocation behavior:
 
 ```bash
@@ -52,6 +83,9 @@ The SSH daemon listens on container port `2222`. Kubernetes should expose Servic
 
 Host keys are generated at runtime under `/etc/ssh/hostkeys` only when missing. Mount a persistent volume at that path so the stable DNS name does not get a new host identity on each restart.
 
+The entrypoint recreates `/run/sshd` at startup, including when `/run` is
+mounted as tmpfs.
+
 Authorized keys are read from:
 
 ```text
@@ -61,6 +95,13 @@ Authorized keys are read from:
 Mount this from a Kubernetes Secret or ExternalSecret. Do not store authorized keys in mutable `/home/agent/.ssh` state.
 
 Password login and root SSH login are disabled.
+
+The SSH variant is a trusted development environment, not a hostile
+multi-tenant boundary. `agent` has intentional passwordless sudo, and the SSH
+configuration intentionally enables agent forwarding, localhost-only TCP
+forwarding, and SFTP for development workflows. An authorized SSH key therefore
+grants control equivalent to the container. Keep the Service private and grant
+keys only to principals who should have that authority.
 
 ## Argo CD Replacement Notes
 
