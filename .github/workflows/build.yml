@@ -13,6 +13,11 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   workflow_dispatch:
 
 permissions: {}
@@ -39,6 +44,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Test storage inventory
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
       - name: Set build variables
         id: vars
         run: |
@@ -64,6 +72,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             type=raw,value=${{ steps.vars.outputs.image_version }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             type=ref,event=pr
+            type=raw,value=manual-${{ github.sha }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -83,6 +92,7 @@ jobs:
           context: .
           file: ./Containerfile
           push: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          load: ${{ github.event_name != 'push' }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           cache-from: type=gha
@@ -91,6 +101,31 @@ jobs:
             IMAGE_VERSION=${{ steps.vars.outputs.image_version }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
             GIT_SHA=${{ github.sha }}
+
+      - name: Report storage inventory
+        if: github.event_name != 'push'
+        env:
+          IMAGE_TAGS: ${{ steps.metadata.outputs.tags }}
+        run: |
+          IMAGE_REF="$(printf '%s\n' "$IMAGE_TAGS" | head -n 1)"
+          IMAGE_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$IMAGE_REF")"
+          INVENTORY_JSON="$(docker run --rm --entrypoint cat "$IMAGE_REF" \
+            /usr/share/agent-sandbox/home-template-inventory.json)"
+          TEMPLATE_BYTES="$(jq -r '.totals.apparent_bytes' <<<"$INVENTORY_JSON")"
+          SOFTWARE_BYTES="$(jq -r \
+            '.owners[] | select(.owner == "image-owned-software") | .apparent_bytes' \
+            <<<"$INVENTORY_JSON")"
+          {
+            echo "### Storage inventory"
+            echo ""
+            echo "| Measurement | Bytes |"
+            echo "|---|---:|"
+            echo "| Loaded image | $IMAGE_SIZE_BYTES |"
+            echo "| Empty persistent-HOME payload | $TEMPLATE_BYTES |"
+            echo "| HOME-owned software payload | $SOFTWARE_BYTES |"
+            echo ""
+            echo "Budget ceilings remain unconfigured until Selene measurements are ratified."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
