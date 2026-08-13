@@ -60,25 +60,25 @@ ARG ATUIN_VERSION=18.16.1
 # Runtime-stage: standalone tool versions + checksums (linux x86_64)
 # renovate: datasource=github-releases depName=astral-sh/uv
 ARG UV_VERSION=0.12.3
-ARG UV_SHA256=aab924fd522efd06f1c5f3b93a243864fc453132c94b2dc49f1371b528a4b967
+ARG UV_SHA256=600cf9a742aca00d292673b16b5acffaa7b8c269a364ad0c2e79498dcb1fe101
 # renovate: datasource=github-releases depName=twpayne/chezmoi
 ARG CHEZMOI_VERSION=2.72.0
-ARG CHEZMOI_SHA256=37d22a4947134c3d6cb87d7a2be7caa63684a27d57e2999c86564126e79424ae
+ARG CHEZMOI_SHA256=ba563f716d5c00a2e91d4aeb199b417c6b219db2896f890fd422fc72610b2d90
 # renovate: datasource=github-releases depName=ajeetdsouza/zoxide
 ARG ZOXIDE_VERSION=0.10.0
 ARG ZOXIDE_SHA256=2d93385b99f3e82cf2701609a1bffcad863fbeb75aa3fe7eb6be4d29be68b1ae
 # renovate: datasource=github-releases depName=anomalyco/opencode
 ARG OPENCODE_VERSION=1.18.17
-ARG OPENCODE_SHA256=cd4a2557a3d6550f27cb5c0257ebe8d73388bb34beda8b6121e6428a74c1eae2
+ARG OPENCODE_SHA256=3f14a4c61c7f6b0d3b6d933d1d212e64e19683eba6fa453ad98e46303afe144a
 # renovate: datasource=github-releases depName=Dicklesworthstone/pi_agent_rust
 ARG PI_AGENT_VERSION=0.1.23
-ARG PI_AGENT_SHA256=c6ddd5a81b7161e44467fb7093f3a31f7acea18bbc2eabe299daf0ce9a670722
+ARG PI_AGENT_SHA256=386db195fe662ed524366b56e590b45449f02d9187585217193d763822a19afb
 # renovate: datasource=github-releases depName=superradcompany/microsandbox
 ARG MSB_VERSION=0.6.8
-ARG MSB_SHA256=5cae2e1d67b976a659baea73f42bd853611daf92e4f8187574db0689ad07e828
+ARG MSB_SHA256=992be66ce8a61965b3ac7733bce58d6a98a8292a172e85c8751074a2ad16f69d
 # renovate: datasource=github-tags depName=aws/aws-cli
 ARG AWSCLI_VERSION=2.36.22
-ARG AWSCLI_SHA256=829a2bbad5b4821a8d006a133c34fa5ce2f362ae003ac39aa0865a6d1e1711f2
+ARG AWSCLI_SHA256=313f4e7d69a37cec61fa7587a478ff2fbe553f15880461d8785613bb509e2a98
 
 # =============================================================================
 # Stage 1: cargo binary builder
