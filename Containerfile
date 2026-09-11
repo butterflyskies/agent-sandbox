@@ -29,7 +29,7 @@ ARG JUST_VERSION=1.55.1
 # renovate: datasource=crate depName=hyperfine
 ARG HYPERFINE_VERSION=1.20.0
 # renovate: datasource=crate depName=tokei
-ARG TOKEI_VERSION=14.0.0
+ARG TOKEI_VERSION=15.0.0
 # renovate: datasource=crate depName=bottom
 ARG BOTTOM_VERSION=0.14.3
 # renovate: datasource=crate depName=du-dust
