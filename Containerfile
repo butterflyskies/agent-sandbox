@@ -27,7 +27,7 @@ ARG RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa
 # renovate: datasource=crate depName=just
 ARG JUST_VERSION=1.55.1
 # renovate: datasource=crate depName=hyperfine
-ARG HYPERFINE_VERSION=1.20.0
+ARG HYPERFINE_VERSION=2.0.0
 # renovate: datasource=crate depName=tokei
 ARG TOKEI_VERSION=14.0.0
 # renovate: datasource=crate depName=bottom
